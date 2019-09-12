@@ -1,0 +1,9 @@
+grant
+{
+    permission java.io.FilePermission "${user.home}${/}.jnati", "read,write";
+    permission java.io.FilePermission "${user.home}${/}.jnati${/}-", "read,write";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "loadLibrary.*";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.util.PropertyPermission "*", "read,write";
+};
