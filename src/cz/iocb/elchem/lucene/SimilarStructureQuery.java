@@ -2,6 +2,7 @@ package cz.iocb.elchem.lucene;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,21 +41,26 @@ import cz.iocb.elchem.molecule.TautomerMode;
 
 public class SimilarStructureQuery extends Query
 {
+    public final static int iterationSizeOffset = 1 << 28;
+
     private final String field;
     private final String query;
 
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
     private final float threshold;
+    private final int maximumDepth;
     private final Query subquery;
 
 
-    public SimilarStructureQuery(String field, String query, float threshold, AromaticityMode aromaticityMode,
-            TautomerMode tautomerMode) throws CDKException, IOException, TimeoutException
+    public SimilarStructureQuery(String field, String query, float threshold, int maximumDepth,
+            AromaticityMode aromaticityMode, TautomerMode tautomerMode)
+            throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
         this.threshold = threshold;
+        this.maximumDepth = maximumDepth;
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
 
@@ -114,7 +120,8 @@ public class SimilarStructureQuery extends Query
         private final Query parentQuery;
         private final IAtomContainer tautomer;
 
-        private final Set<Integer> fp;
+        private final List<List<Integer>> fp;
+        private final int fpSize;
 
 
         SingleSimilarityQuery(IAtomContainer tautomer) throws CDKException, IOException
@@ -126,7 +133,8 @@ public class SimilarStructureQuery extends Query
 
             BinaryMolecule molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
 
-            this.fp = IOCBFingerprint.getSimilarityFingerprint(molecule);
+            this.fp = IOCBFingerprint.getSimilarityFingerprint(molecule, maximumDepth);
+            this.fpSize = fp.stream().map(i -> i.size()).reduce(0, Integer::sum);
         }
 
 
@@ -180,8 +188,8 @@ public class SimilarStructureQuery extends Query
                 Builder builder = new BooleanQuery.Builder();
                 FingerprintBitMapping mapping = new FingerprintBitMapping();
 
-                int min = (int) Math.floor(fp.size() * threshold);
-                int max = (int) Math.ceil(fp.size() / threshold);
+                int min = maximumDepth * iterationSizeOffset + (int) Math.floor(fpSize * threshold);
+                int max = maximumDepth * iterationSizeOffset + (int) Math.ceil(fpSize / threshold);
 
                 builder.add(IntPoint.newRangeQuery(field, min, max), BooleanClause.Occur.MUST);
 
@@ -235,13 +243,30 @@ public class SimilarStructureQuery extends Query
 
             private Set<Integer> selectFingerprintBits(IndexSearcher searcher) throws IOException
             {
-                int limit = 1 + (int) Math.ceil(fp.size() * (1 - threshold));
+                int limit = (int) Math.ceil(fpSize * (1 - threshold));
 
-                Map<Integer, Integer> ordered = new TreeMap<Integer, Integer>();
                 FingerprintBitMapping mapping = new FingerprintBitMapping();
+                Map<Integer, Integer> bits = new HashMap<Integer, Integer>();
+                Map<Integer, Integer> ordered = new TreeMap<Integer, Integer>();
 
-                for(int i : fp)
-                    ordered.put(searcher.getIndexReader().docFreq(new Term(field, mapping.bitAsString(i))), i);
+                for(List<Integer> segment : fp)
+                {
+                    for(Integer i : segment)
+                    {
+                        Integer count = bits.get(i);
+
+                        if(count == null)
+                        {
+                            bits.put(i, 1);
+                            ordered.put(searcher.getIndexReader().docFreq(new Term(field, mapping.bitAsString(i))), i);
+                        }
+                        else
+                        {
+                            bits.put(i, count + 1);
+                        }
+                    }
+                }
+
 
                 Set<Integer> selected = new HashSet<Integer>();
 
@@ -250,8 +275,9 @@ public class SimilarStructureQuery extends Query
                 for(Integer bit : ordered.values())
                 {
                     selected.add(bit);
+                    count += bits.get(bit);
 
-                    if(++count == limit)
+                    if(count > limit)
                         break;
                 }
 
@@ -301,20 +327,43 @@ public class SimilarStructureQuery extends Query
                     molDocValue.advanceExact(docID);
                     BytesRef data = molDocValue.binaryValue();
 
+                    int offset = 0;
+                    int dbSize = 0;
                     int shared = 0;
 
-                    for(int i = 0; i < data.length / 4; i++)
+                    for(List<Integer> iteration : fp)
                     {
-                        int value = 0;
+                        int size = 0;
 
-                        for(int j = 0; j < 4; j++)
-                            value |= Byte.toUnsignedInt(data.bytes[i * 4 + j]) << (j * 8);
+                        for(int b = 0; b < Integer.BYTES; b++)
+                            size |= Byte.toUnsignedInt(data.bytes[offset * Integer.BYTES + b]) << (b * 8);
 
-                        if(fp.contains(value))
-                            shared++;
+                        for(int idx = 0, i = 1; i <= size; i++)
+                        {
+                            int value = 0;
+
+                            for(int b = 0; b < 4; b++)
+                                value |= Byte.toUnsignedInt(data.bytes[(offset + i) * Integer.BYTES + b]) << (b * 8);
+
+                            while(idx < iteration.size() && iteration.get(idx) < value)
+                                idx++;
+
+                            if(idx == iteration.size())
+                                break;
+
+                            if(iteration.get(idx) == value)
+                            {
+                                shared++;
+                                idx++;
+                            }
+                        }
+
+                        offset += size + 1;
+                        dbSize += size;
                     }
 
-                    float similarity = shared / (float) (fp.size() + data.length / 4 - shared);
+
+                    float similarity = shared / (float) (fpSize + dbSize - shared);
 
                     if(similarity < threshold)
                         return false;

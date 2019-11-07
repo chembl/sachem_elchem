@@ -1,6 +1,7 @@
 package cz.iocb.elchem.elasticsearch;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +25,7 @@ import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import cz.iocb.elchem.fingerprint.IOCBFingerprint;
 import cz.iocb.elchem.lucene.FingerprintTokenStream;
+import cz.iocb.elchem.lucene.SimilarStructureQuery;
 import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.BinaryMolecule;
 import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
@@ -34,6 +36,7 @@ import cz.iocb.elchem.molecule.MoleculeCreator;
 public class SimilarityFingerprintFieldMapper extends FieldMapper
 {
     public static final String CONTENT_TYPE = "similarity_fingerprint";
+    public static final int maximumDepth = 3;
 
 
     public static class Defaults
@@ -164,26 +167,42 @@ public class SimilarityFingerprintFieldMapper extends FieldMapper
         {
             IAtomContainer container = MoleculeCreator.getMoleculeFromMolfile(sdf, AromaticityMode.AUTO);
             BinaryMoleculeBuilder builder = new BinaryMoleculeBuilder(container);
-
             byte[] binary = builder.asBytes(true);
 
             String name = fieldType().name();
             BinaryMolecule molecule = new BinaryMolecule(binary);
-            Set<Integer> fp = IOCBFingerprint.getSimilarityFingerprint(molecule);
+            List<List<Integer>> fp = IOCBFingerprint.getSimilarityFingerprint(molecule, maximumDepth);
 
 
-            byte[] array = new byte[fp.size() * 4];
+            byte[] array = new byte[fp.stream().map(i -> i.size() + 1).reduce(0, Integer::sum) * Integer.BYTES];
 
-            int pos = 0;
-            for(int b : fp)
-                for(int i = 0; i < 4; i++)
-                    array[pos++] = (byte) (b >> (8 * i));
+            for(int pos = 0, i = 0; i < fp.size(); i++)
+            {
+                for(int b = 0; b < Integer.BYTES; b++)
+                    array[pos++] = (byte) (fp.get(i).size() >> (8 * b));
+
+                for(int bit : fp.get(i))
+                    for(int b = 0; b < Integer.BYTES; b++)
+                        array[pos++] = (byte) (bit >> (8 * b));
+            }
 
 
+            Set<Integer> bits = new HashSet<Integer>();
+
+            for(List<Integer> seg : fp)
+                bits.addAll(seg);
+
+
+            fields.add(new TextField(name, new FingerprintTokenStream(bits)));
             fields.add(new StoredField(name, array));
             fields.add(new BinaryDocValuesField(name, new BytesRef(array)));
-            fields.add(new IntPoint(name, fp.size()));
-            fields.add(new TextField(name, new FingerprintTokenStream(fp)));
+
+            for(int size = 0, i = 0; i < fp.size(); i++)
+            {
+                size += fp.get(i).size();
+                fields.add(new IntPoint(name, size));
+                size += SimilarStructureQuery.iterationSizeOffset;
+            }
         }
         catch(CDKException e)
         {

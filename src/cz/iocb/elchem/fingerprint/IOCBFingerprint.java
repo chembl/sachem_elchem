@@ -2,6 +2,7 @@ package cz.iocb.elchem.fingerprint;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -82,21 +83,8 @@ public class IOCBFingerprint extends Fingerprint
     }
 
 
-    public static final Set<Integer> getSimilarityFingerprint(Molecule molecule, int circSize, int maxFeatLogCount,
-            Map<Integer, Set<Integer>> info)
+    public static final List<List<Integer>> getSimilarityFingerprint(Molecule molecule, int circSize)
     {
-        Set<Integer> fp = new HashSet<Integer>();
-
-        Map<Integer, Set<Integer>> rci = info != null ? new HashMap<Integer, Set<Integer>>() : null;
-        Map<Integer, Integer> rc = RCFingerprint.getFingerprint(molecule, 0, circSize, rci);
-        processElements(rc, rci, 1, fp, maxFeatLogCount, false, info);
-
-        return fp;
-    }
-
-
-    public static Set<Integer> getSimilarityFingerprint(BinaryMolecule molecule)
-    {
-        return getSimilarityFingerprint(molecule, 3, 5, null);
+        return RCFingerprint.getFingerprint(molecule, 0, circSize);
     }
 }
