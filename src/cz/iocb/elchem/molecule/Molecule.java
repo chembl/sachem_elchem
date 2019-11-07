@@ -238,6 +238,29 @@ public abstract class Molecule
     }
 
 
+    public final boolean isExtendedCisTrans(int centre)
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            int end = getBondAtom(centre, i);
+            int[] list = getBondedAtoms(end);
+
+            if(list.length != 2)
+                return false;
+
+            for(int ligand : list)
+            {
+                int bond = getBond(end, ligand);
+
+                if(getBondType(bond) != Molecule.BondType.DOUBLE)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+
     public static byte normalizeAtomStereo(int[] indexes, byte stereo)
     {
         int order = 0;

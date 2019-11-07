@@ -33,10 +33,18 @@ index 07f8ee2137..ff52e3cdce 100644
              labels[v] = label;
          }
 diff --git a/base/standard/src/main/java/org/openscience/cdk/stereo/StereoElementFactory.java b/base/standard/src/main/java/org/openscience/cdk/stereo/StereoElementFactory.java
-index 09c723bed9..33009afbe5 100644
+index 09c723bed9..9d19ddb706 100644
 --- a/base/standard/src/main/java/org/openscience/cdk/stereo/StereoElementFactory.java
 +++ b/base/standard/src/main/java/org/openscience/cdk/stereo/StereoElementFactory.java
-@@ -285,7 +285,7 @@ public abstract class StereoElementFactory {
+@@ -46,6 +46,7 @@ import java.util.Set;
+ import static org.openscience.cdk.graph.GraphUtil.EdgeToBondMap;
+ import static org.openscience.cdk.interfaces.IBond.Stereo.DOWN;
+ import static org.openscience.cdk.interfaces.IBond.Stereo.DOWN_INVERTED;
++import static org.openscience.cdk.interfaces.IBond.Stereo.E_OR_Z;
+ import static org.openscience.cdk.interfaces.IDoubleBondStereochemistry.Conformation;
+ import static org.openscience.cdk.interfaces.ITetrahedralChirality.Stereo;
+ 
+@@ -285,7 +286,7 @@ public abstract class StereoElementFactory {
                          IBond bond = bondMap.get(v, w);
                          if (w > v && bond.getOrder() == IBond.Order.DOUBLE) {
                              if (centers.elementType(w) == Stereocenters.Type.Tricoordinate
@@ -45,7 +53,7 @@ index 09c723bed9..33009afbe5 100644
                                  IStereoElement element = createGeometric(v, w, centers);
                                  if (element != null) elements.add(element);
                              }
-@@ -773,6 +773,9 @@ public abstract class StereoElementFactory {
+@@ -773,6 +774,9 @@ public abstract class StereoElementFactory {
  
              if (hasUnspecifiedParity(focus)) return null;
  
@@ -55,7 +63,7 @@ index 09c723bed9..33009afbe5 100644
              IAtom[] terminals = ExtendedTetrahedral.findTerminalAtoms(container, focus);
  
              int t0 = container.indexOf(terminals[0]);
-@@ -795,6 +798,7 @@ public abstract class StereoElementFactory {
+@@ -795,6 +799,7 @@ public abstract class StereoElementFactory {
                  if (w == v) continue;
                  if (bond.getOrder() != IBond.Order.SINGLE) continue;
                  if (isUnspecified(bond)) return null;
@@ -63,7 +71,7 @@ index 09c723bed9..33009afbe5 100644
                  neighbors[n] = container.getAtom(w);
                  elevation[n] = elevationOf(terminals[0], bond);
                  n++;
-@@ -806,6 +810,7 @@ public abstract class StereoElementFactory {
+@@ -806,6 +811,7 @@ public abstract class StereoElementFactory {
                  IBond bond = bondMap.get(t1, w);
                  if (bond.getOrder() != IBond.Order.SINGLE) continue;
                  if (isUnspecified(bond)) return null;
@@ -71,6 +79,17 @@ index 09c723bed9..33009afbe5 100644
                  neighbors[n] = container.getAtom(w);
                  elevation[n] = elevationOf(terminals[1], bond);
                  n++;
+@@ -831,6 +837,10 @@ public abstract class StereoElementFactory {
+             if ((dbs.size() & 0x1) == 0)
+                 return null;
+ 
++            for(IBond bond : dbs)
++                if(bond.getStereo() == E_OR_Z)
++                    return null;
++
+             IBond   focus    = dbs.get(dbs.size()/2);
+             IBond[] carriers = new IBond[2];
+             int     config   = 0;
 diff --git a/base/standard/src/main/java/org/openscience/cdk/stereo/Stereocenters.java b/base/standard/src/main/java/org/openscience/cdk/stereo/Stereocenters.java
 index 06a6113e57..237b49d48f 100644
 --- a/base/standard/src/main/java/org/openscience/cdk/stereo/Stereocenters.java

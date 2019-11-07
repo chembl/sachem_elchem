@@ -519,52 +519,138 @@ public class Isomorphism
                     if(targetStereo == Molecule.BondStereo.NONE || targetStereo == Molecule.BondStereo.UNDEFINED)
                         continue;
 
+                    if(query.isExtendedCisTrans(queryBondIdx))
+                    {
+                        int[] queryTerminalAtoms = new int[2];
+                        int[] queryPreTerminalAtoms = new int[2];
+                        int[] queryAtoms = new int[4];
+                        int listSize = 0;
 
-                    int[] bondedAtoms0 = query.getBondedAtoms(queryBondAtom0);
-                    int[] bondedAtoms1 = query.getBondedAtoms(queryBondAtom1);
+                        for(int i = 0; i < 2; i++)
+                        {
+                            int atom = query.getBondAtom(queryBondIdx, 0);
+                            int bonded = query.getOtherBondAtom(queryBondIdx, atom);
 
-                    if(bondedAtoms0.length < 2 || bondedAtoms1.length < 2)
-                        continue;
+                            while(true)
+                            {
+                                int[] newList = query.getBondedAtoms(bonded);
+
+                                if(newList.length == 3)
+                                {
+                                    queryTerminalAtoms[i] = bonded;
+                                    queryPreTerminalAtoms[i] = atom;
+
+                                    for(int j = 0; j < 3; j++)
+                                    {
+                                        int o = newList[j];
+
+                                        if(o == atom)
+                                            continue;
+
+                                        queryAtoms[listSize++] = o;
+                                    }
+
+                                    break;
+                                }
+                                else if(newList.length == 2)
+                                {
+                                    int next = query.getOppositeAtom(bonded, atom);
+
+                                    if(query.getBondType(query.getBond(bonded, next)) != BondType.DOUBLE)
+                                    {
+                                        queryTerminalAtoms[i] = bonded;
+                                        queryPreTerminalAtoms[i] = atom;
+                                        queryAtoms[listSize++] = next;
+                                        queryAtoms[listSize++] = Molecule.MAX_ATOM_IDX;
+                                        break;
+                                    }
+
+                                    atom = bonded;
+                                    bonded = next;
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if(listSize < 4)
+                            continue;
+
+                        sortBondAtoms(queryAtoms);
 
 
-                    int[] queryAtoms = new int[4];
+                        int targetTerminalAtom0 = queryCore[queryTerminalAtoms[0]];
+                        int targetTerminalAtom1 = queryCore[queryTerminalAtoms[1]];
+                        int targetPreTerminalAtom0 = queryCore[queryPreTerminalAtoms[0]];
+                        int targetPreTerminalAtom1 = queryCore[queryPreTerminalAtoms[1]];
 
-                    int idx = 0;
+                        int[] targetAtoms = new int[] { -1, -1, -1, -1 };
 
-                    for(int i = 0; i < bondedAtoms0.length; i++)
-                        if(bondedAtoms0[i] != queryBondAtom1)
-                            queryAtoms[idx++] = bondedAtoms0[i];
+                        for(int i = 0; i < 4; i++)
+                            if(queryAtoms[i] != Molecule.MAX_ATOM_IDX)
+                                targetAtoms[i] = queryCore[queryAtoms[i]];
 
-                    if(bondedAtoms0.length == 2)
-                        queryAtoms[idx++] = Molecule.MAX_ATOM_IDX;
+                        if(queryAtoms[1] == Molecule.MAX_ATOM_IDX)
+                            targetAtoms[1] = target.getLastStereoBondLigand(targetTerminalAtom0, targetPreTerminalAtom0,
+                                    targetAtoms[0]);
+
+                        if(queryAtoms[3] == Molecule.MAX_ATOM_IDX)
+                            targetAtoms[3] = target.getLastStereoBondLigand(targetTerminalAtom1, targetPreTerminalAtom1,
+                                    targetAtoms[2]);
+
+                        if(Molecule.normalizeBondStereo(targetAtoms, targetStereo) != queryStereo)
+                            return false;
+                    }
+                    else
+                    {
+                        int[] bondedAtoms0 = query.getBondedAtoms(queryBondAtom0);
+                        int[] bondedAtoms1 = query.getBondedAtoms(queryBondAtom1);
+
+                        if(bondedAtoms0.length < 2 || bondedAtoms1.length < 2)
+                            continue;
 
 
-                    for(int i = 0; i < bondedAtoms1.length; i++)
-                        if(bondedAtoms1[i] != queryBondAtom0)
-                            queryAtoms[idx++] = bondedAtoms1[i];
+                        int[] queryAtoms = new int[4];
 
-                    if(bondedAtoms1.length == 2)
-                        queryAtoms[idx] = Molecule.MAX_ATOM_IDX;
+                        int idx = 0;
 
-                    sortBondAtoms(queryAtoms);
+                        for(int i = 0; i < bondedAtoms0.length; i++)
+                            if(bondedAtoms0[i] != queryBondAtom1)
+                                queryAtoms[idx++] = bondedAtoms0[i];
+
+                        if(bondedAtoms0.length == 2)
+                            queryAtoms[idx++] = Molecule.MAX_ATOM_IDX;
 
 
-                    int[] targetAtoms = new int[] { -1, -1, -1, -1 };
+                        for(int i = 0; i < bondedAtoms1.length; i++)
+                            if(bondedAtoms1[i] != queryBondAtom0)
+                                queryAtoms[idx++] = bondedAtoms1[i];
 
-                    for(int i = 0; i < 4; i++)
-                        if(queryAtoms[i] != Molecule.MAX_ATOM_IDX)
-                            targetAtoms[i] = queryCore[queryAtoms[i]];
+                        if(bondedAtoms1.length == 2)
+                            queryAtoms[idx] = Molecule.MAX_ATOM_IDX;
 
-                    if(queryAtoms[1] == Molecule.MAX_ATOM_IDX)
-                        targetAtoms[1] = target.getLastStereoBondLigand(targetBondAtom0, targetBondAtom1,
-                                targetAtoms[0]);
+                        sortBondAtoms(queryAtoms);
 
-                    if(queryAtoms[3] == Molecule.MAX_ATOM_IDX)
-                        targetAtoms[3] = target.getLastStereoBondLigand(targetBondAtom1, targetBondAtom0,
-                                targetAtoms[2]);
 
-                    if(Molecule.normalizeBondStereo(targetAtoms, targetStereo) != queryStereo)
-                        return false;
+                        int[] targetAtoms = new int[] { -1, -1, -1, -1 };
+
+                        for(int i = 0; i < 4; i++)
+                            if(queryAtoms[i] != Molecule.MAX_ATOM_IDX)
+                                targetAtoms[i] = queryCore[queryAtoms[i]];
+
+                        if(queryAtoms[1] == Molecule.MAX_ATOM_IDX)
+                            targetAtoms[1] = target.getLastStereoBondLigand(targetBondAtom0, targetBondAtom1,
+                                    targetAtoms[0]);
+
+                        if(queryAtoms[3] == Molecule.MAX_ATOM_IDX)
+                            targetAtoms[3] = target.getLastStereoBondLigand(targetBondAtom1, targetBondAtom0,
+                                    targetAtoms[2]);
+
+                        if(Molecule.normalizeBondStereo(targetAtoms, targetStereo) != queryStereo)
+                            return false;
+                    }
                 }
             }
 

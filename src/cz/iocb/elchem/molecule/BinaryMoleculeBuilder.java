@@ -27,6 +27,7 @@ import org.openscience.cdk.interfaces.IStereoElement;
 import org.openscience.cdk.interfaces.ITetrahedralChirality.Stereo;
 import org.openscience.cdk.isomorphism.matchers.QueryBond;
 import org.openscience.cdk.stereo.DoubleBondStereochemistry;
+import org.openscience.cdk.stereo.ExtendedCisTrans;
 import org.openscience.cdk.stereo.ExtendedTetrahedral;
 import org.openscience.cdk.stereo.Stereocenters;
 import org.openscience.cdk.stereo.Stereocenters.Type;
@@ -51,7 +52,7 @@ public class BinaryMoleculeBuilder
     private IAtomContainer molecule;
     private Stereocenters centers;
     @SuppressWarnings("rawtypes") private IStereoElement[] tetrahedralChirality;
-    private DoubleBondStereochemistry[] doubleBondStereo;
+    @SuppressWarnings("rawtypes") private IStereoElement[] doubleBondStereo;
 
 
     public BinaryMoleculeBuilder(IAtomContainer molecule) throws CDKException
@@ -85,7 +86,7 @@ public class BinaryMoleculeBuilder
         }
 
 
-        doubleBondStereo = new DoubleBondStereochemistry[molecule.getBondCount()];
+        doubleBondStereo = new IStereoElement[molecule.getBondCount()];
 
         for(@SuppressWarnings("rawtypes")
         IStereoElement element : molecule.stereoElements())
@@ -93,7 +94,12 @@ public class BinaryMoleculeBuilder
             if(element instanceof DoubleBondStereochemistry)
             {
                 DoubleBondStereochemistry e = (DoubleBondStereochemistry) element;
-                doubleBondStereo[molecule.indexOf(e.getStereoBond())] = e;
+                doubleBondStereo[molecule.indexOf(e.getStereoBond())] = element;
+            }
+            else if(element instanceof ExtendedCisTrans)
+            {
+                ExtendedCisTrans e = (ExtendedCisTrans) element;
+                doubleBondStereo[molecule.indexOf(e.getFocus())] = element;
             }
         }
     }
@@ -145,7 +151,7 @@ public class BinaryMoleculeBuilder
                 specialCount++;
 
         for(int idx = 0; idx < molecule.getBondCount(); idx++)
-            if(isDoubleBondStereochemistry(idx))
+            if(isDoubleBondStereochemistry(idx) || isExtendedCisTrans(idx))
                 specialCount++;
 
 
@@ -352,9 +358,9 @@ public class BinaryMoleculeBuilder
                 if(tetrahedralChirality[idx] != null)
                 {
                     if(tetrahedralChirality[idx] instanceof TetrahedralChirality)
-                        flag = getChiralityValue((TetrahedralChirality) tetrahedralChirality[idx]);
+                        flag = getTetrahedralChiralityType((TetrahedralChirality) tetrahedralChirality[idx]);
                     else
-                        flag = getExtendedChiralityValue((ExtendedTetrahedral) tetrahedralChirality[idx]);
+                        flag = getExtendedTetrahedralType((ExtendedTetrahedral) tetrahedralChirality[idx]);
                 }
 
                 stream.write(SpecialRecordType.TETRAHEDRAL_STEREO << 4 | idx / 256);
@@ -370,12 +376,17 @@ public class BinaryMoleculeBuilder
             IBond bond = molecule.getBond(idx);
             assert bond.getAtomCount() == 2;
 
-            if(isDoubleBondStereochemistry(idx))
+            if(isDoubleBondStereochemistry(idx) || isExtendedCisTrans(idx))
             {
                 byte flag = BondStereo.UNDEFINED;
 
                 if(doubleBondStereo[idx] != null)
-                    flag = getDoubleBondStereoType(doubleBondStereo[idx]);
+                {
+                    if(doubleBondStereo[idx] instanceof DoubleBondStereochemistry)
+                        flag = getDoubleBondStereochemistryType((DoubleBondStereochemistry) doubleBondStereo[idx]);
+                    else
+                        flag = getExtendedCisTransType((ExtendedCisTrans) doubleBondStereo[idx]);
+                }
 
                 int index = bond.getProperty(BOND_NUMBER);
                 stream.write(SpecialRecordType.BOND_STEREO << 4 | index / 256);
@@ -441,7 +452,7 @@ public class BinaryMoleculeBuilder
         if(focus.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
             return false;
 
-        if(tetrahedralChirality[index] != null)
+        if(tetrahedralChirality[index] instanceof TetrahedralChirality)
             return true;
 
         if(centers == null)
@@ -464,7 +475,7 @@ public class BinaryMoleculeBuilder
         if(focus.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
             return false;
 
-        if(tetrahedralChirality[index] != null)
+        if(tetrahedralChirality[index] instanceof ExtendedTetrahedral)
             return true;
 
         if(centers == null)
@@ -572,7 +583,7 @@ public class BinaryMoleculeBuilder
         if(bond.isAromatic())
             return false;
 
-        if(doubleBondStereo[index] != null)
+        if(doubleBondStereo[index] instanceof DoubleBondStereochemistry)
             return true;
 
         if(centers == null)
@@ -593,7 +604,99 @@ public class BinaryMoleculeBuilder
     }
 
 
-    private byte getChiralityValue(TetrahedralChirality chirality)
+    private boolean isExtendedCisTrans(int index)
+    {
+        IBond bond = molecule.getBond(index);
+
+        if(bond.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
+            return false;
+
+        if(bond.getOrder() != Order.DOUBLE || bond.isAromatic())
+            return false;
+
+        if(doubleBondStereo[index] instanceof ExtendedCisTrans)
+            return true;
+
+        if(centers == null)
+            return false;
+
+
+        /* find "left" terninal */
+        IAtom leftPrevious = bond.getAtom(0);
+        IAtom leftTerminal = bond.getAtom(1);
+        int leftLength = 0;
+
+        if(!centers.isStereocenter(molecule.indexOf(leftTerminal)))
+            return false;
+
+        while(true)
+        {
+            if(centers.elementType(molecule.indexOf(leftTerminal)) != Type.Bicoordinate)
+                break;
+
+            List<IAtom> neighbors = molecule.getConnectedAtomsList(leftTerminal);
+            neighbors.remove(leftPrevious);
+
+            if(neighbors.size() != 1)
+                break;
+
+            IAtom candidate = neighbors.get(0);
+
+            if(molecule.getBond(leftTerminal, candidate).getOrder() != Order.DOUBLE)
+                break;
+
+            if(!centers.isStereocenter(molecule.indexOf(candidate)))
+                break;
+
+            leftPrevious = leftTerminal;
+            leftTerminal = neighbors.get(0);
+            leftLength++;
+        }
+
+        if(leftLength == 0 || centers.elementType(molecule.indexOf(leftTerminal)) != Type.Tricoordinate)
+            return false;
+
+
+        /* find "right" terninal */
+        IAtom rightPrevious = bond.getAtom(1);
+        IAtom rightTerminal = bond.getAtom(0);
+        int rightLength = 0;
+
+        if(!centers.isStereocenter(molecule.indexOf(rightTerminal)))
+            return false;
+
+        while(true)
+        {
+            if(centers.elementType(molecule.indexOf(rightTerminal)) != Type.Bicoordinate)
+                break;
+
+            List<IAtom> neighbors = molecule.getConnectedAtomsList(rightTerminal);
+            neighbors.remove(rightPrevious);
+
+            if(neighbors.size() != 1)
+                break;
+
+            IAtom candidate = neighbors.get(0);
+
+            if(molecule.getBond(rightTerminal, candidate).getOrder() != Order.DOUBLE)
+                break;
+
+            if(!centers.isStereocenter(molecule.indexOf(candidate)))
+                break;
+
+            rightPrevious = rightTerminal;
+            rightTerminal = neighbors.get(0);
+            rightLength++;
+        }
+
+        if(rightLength == 0 || centers.elementType(molecule.indexOf(rightTerminal)) != Type.Tricoordinate)
+            return false;
+
+        return leftLength == rightLength;
+    }
+
+
+    private byte getTetrahedralChiralityType(TetrahedralChirality chirality)
     {
         IAtom center = chirality.getChiralAtom();
         IAtom[] ligands = chirality.getLigands();
@@ -636,7 +739,7 @@ public class BinaryMoleculeBuilder
     }
 
 
-    private byte getExtendedChiralityValue(ExtendedTetrahedral chirality)
+    private byte getExtendedTetrahedralType(ExtendedTetrahedral chirality)
     {
         IAtom[] terminals = chirality.findTerminalAtoms(molecule);
         IAtom[] ligands = chirality.peripherals();
@@ -668,7 +771,7 @@ public class BinaryMoleculeBuilder
     }
 
 
-    private byte getDoubleBondStereoType(DoubleBondStereochemistry stereo)
+    private byte getDoubleBondStereochemistryType(DoubleBondStereochemistry stereo)
     {
         IBond bond = stereo.getStereoBond();
         IBond[] bonds = stereo.getBonds();
@@ -709,5 +812,62 @@ public class BinaryMoleculeBuilder
             return conformation == Conformation.TOGETHER ? BondStereo.OPPOSITE : BondStereo.TOGETHER;
         else
             return conformation == Conformation.TOGETHER ? BondStereo.TOGETHER : BondStereo.OPPOSITE;
+    }
+
+
+    private byte getExtendedCisTransType(ExtendedCisTrans stereo)
+    {
+        List<IBond> carriers = stereo.getCarriers();
+        int conformation = stereo.getConfigOrder();
+
+
+        int[] ligands = new int[4];
+
+        for(int i = 0; i < 2; i++)
+        {
+            IBond bond = stereo.getFocus();
+            IAtom terminal = bond.getAtom(i);
+
+            while(true)
+            {
+                List<IBond> bonds = molecule.getConnectedBondsList(terminal);
+
+                if(bonds.size() != 2)
+                    break;
+
+                IBond next = bonds.get(0) == bond ? bonds.get(1) : bonds.get(0);
+
+                if(next.getOrder() != IBond.Order.DOUBLE)
+                    break;
+
+                terminal = next.getOther(terminal);
+                bond = next;
+            }
+
+            IBond carrier = carriers.get(0).contains(terminal) ? carriers.get(0) : carriers.get(1);
+            IBond cocarier = null;
+
+            for(IBond b : molecule.getConnectedBondsList(terminal))
+                if(b != carrier && b != bond)
+                    cocarier = b;
+
+            ligands[2 * i] = molecule.indexOf(carrier.getOther(terminal));
+            ligands[2 * i + 1] = cocarier != null ? molecule.indexOf(cocarier.getOther(terminal)) : Integer.MAX_VALUE;
+        }
+
+
+        boolean reverse = false;
+
+        if(ligands[0] > ligands[1])
+            reverse = !reverse;
+
+        if(ligands[2] > ligands[3])
+            reverse = !reverse;
+
+
+        if(reverse)
+            return conformation == IStereoElement.TOGETHER ? BondStereo.OPPOSITE : BondStereo.TOGETHER;
+        else
+            return conformation == IStereoElement.TOGETHER ? BondStereo.TOGETHER : BondStereo.OPPOSITE;
     }
 }
