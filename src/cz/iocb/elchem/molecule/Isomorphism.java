@@ -528,7 +528,7 @@ public class Isomorphism
 
                         for(int i = 0; i < 2; i++)
                         {
-                            int atom = query.getBondAtom(queryBondIdx, 0);
+                            int atom = query.getBondAtom(queryBondIdx, i);
                             int bonded = query.getOtherBondAtom(queryBondIdx, atom);
 
                             while(true)
