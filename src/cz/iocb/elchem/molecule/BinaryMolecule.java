@@ -16,6 +16,7 @@ public final class BinaryMolecule extends Molecule
     }
 
 
+    private static final int BOND_BLOCK_SIZE = 4;
     private static final int HBOND_BLOCK_SIZE = 2;
     private static final int SPECIAL_BLOCK_SIZE = 3;
 
@@ -495,61 +496,23 @@ public final class BinaryMolecule extends Molecule
 
     public static boolean hasMultivalentHydrogen(byte[] data)
     {
-        int possition = 0;
+        int xAtomCount = Byte.toUnsignedInt(data[0]) << 8 | Byte.toUnsignedInt(data[1]);
+        int cAtomCount = Byte.toUnsignedInt(data[2]) << 8 | Byte.toUnsignedInt(data[3]);
+        int xBondCount = Byte.toUnsignedInt(data[6]) << 8 | Byte.toUnsignedInt(data[7]);
 
-        int xAtomCount = Byte.toUnsignedInt(data[possition++]) << 8 | Byte.toUnsignedInt(data[possition++]);
-        int cAtomCount = Byte.toUnsignedInt(data[possition++]) << 8 | Byte.toUnsignedInt(data[possition++]);
-        int hAtomCount = Byte.toUnsignedInt(data[possition++]) << 8 | Byte.toUnsignedInt(data[possition++]);
-        int xBondCount = Byte.toUnsignedInt(data[possition++]) << 8 | Byte.toUnsignedInt(data[possition++]);
+        if(xBondCount == 0)
+            return false;
 
-        possition += xAtomCount + 2;
-        int heavyAtomCount = xAtomCount + cAtomCount;
+        int offset = 10 + xAtomCount + (xBondCount - 1) * BOND_BLOCK_SIZE;
 
+        int b0 = Byte.toUnsignedInt(data[offset + 0]);
+        int b1 = Byte.toUnsignedInt(data[offset + 1]);
+        int b2 = Byte.toUnsignedInt(data[offset + 2]);
 
-        int[] hBonds = new int[hAtomCount];
+        int x = b0 | (b1 << 4 & 0xF00);
+        int y = b2 | (b1 << 8 & 0xF00);
 
-        for(int i = 0; i < hAtomCount; i++)
-            hBonds[i] = 0;
-
-        for(int i = 0; i < xBondCount; i++)
-        {
-            int b0 = Byte.toUnsignedInt(data[possition++]);
-            int b1 = Byte.toUnsignedInt(data[possition++]);
-            int b2 = Byte.toUnsignedInt(data[possition++]);
-            possition++;
-
-            int x = b0 | (b1 << 4 & 0xF00);
-            int y = b2 | (b1 << 8 & 0xF00);
-
-            if(x >= heavyAtomCount)
-                hBonds[x - heavyAtomCount]++;
-
-            if(y >= heavyAtomCount)
-                hBonds[y - heavyAtomCount]++;
-        }
-
-
-        for(int i = 0; i < hAtomCount; i++)
-        {
-            int value = Byte.toUnsignedInt(data[possition++]) * 256 | Byte.toUnsignedInt(data[possition++]);
-
-            if(value != 0)
-            {
-                int idx = value & 0xFFF;
-
-                if(idx >= heavyAtomCount)
-                    hBonds[idx - heavyAtomCount]++;
-
-                hBonds[i]++;
-            }
-        }
-
-
-        for(int i = 0; i < hAtomCount; i++)
-            if(hBonds[i] > 1)
-                return true;
-
-        return false;
+        return x >= xAtomCount + cAtomCount || y >= xAtomCount + cAtomCount;
     }
 
 
