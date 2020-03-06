@@ -412,7 +412,7 @@ public class SGFingerprint extends Fingerprint
             }
 
             if(!visitedAtoms[other])
-                visited += fragmentWalk(molecule, other, visitedAtoms, visitedBonds, visited);
+                visited = fragmentWalk(molecule, other, visitedAtoms, visitedBonds, visited);
         }
 
         return visited;
