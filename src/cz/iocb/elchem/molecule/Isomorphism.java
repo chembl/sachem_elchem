@@ -541,14 +541,8 @@ public class Isomorphism
                                     queryPreTerminalAtoms[i] = atom;
 
                                     for(int j = 0; j < 3; j++)
-                                    {
-                                        int o = newList[j];
-
-                                        if(o == atom)
-                                            continue;
-
-                                        queryAtoms[listSize++] = o;
-                                    }
+                                        if(newList[j] != atom)
+                                            queryAtoms[listSize++] = newList[j];
 
                                     break;
                                 }
