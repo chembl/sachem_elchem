@@ -34,8 +34,8 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
 
     private String fieldName;
     private String molecule;
-    private float threshold = 0.7f;
-    private int maximumDepth = SimilarityFingerprintFieldMapper.maximumDepth;
+    private float threshold = 0.8f;
+    private int maximumDepth = 1;
     private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
     private TautomerMode tautomerMode = TautomerMode.IGNORE;
 
@@ -74,8 +74,8 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
     {
         String fieldPattern = null;
         String moleculePattern = null;
-        float thresholdPattern = 0.7f;
-        int maximumDepthPattern = SimilarityFingerprintFieldMapper.maximumDepth;
+        float thresholdPattern = 0.8f;
+        int maximumDepthPattern = 1;
         AromaticityMode aromaticityModePattern = AromaticityMode.AUTO;
         TautomerMode tautomerModePattern = TautomerMode.IGNORE;
 
