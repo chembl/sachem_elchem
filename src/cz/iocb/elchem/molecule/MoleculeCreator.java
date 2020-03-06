@@ -70,21 +70,39 @@ public class MoleculeCreator
     };
 
 
-    public static List<IAtomContainer> translateQuery(String query, AromaticityMode aromaticityMode,
+    public static List<IAtomContainer> translateQuery(String query, QueryFormat format, AromaticityMode aromaticityMode,
             TautomerMode tautomerMode) throws CDKException, IOException, TimeoutException
     {
         try
         {
             List<IAtomContainer> queries = null;
-            List<String> lines = Arrays.asList(query.split("\\n"));
 
+            switch(format)
+            {
+                case MOLFILE:
+                    queries = Arrays.asList(MoleculeCreator.getMoleculeFromMolfile(query, aromaticityMode));
+                    break;
 
-            if(((RGroupQueryFormat) RGroupQueryFormat.getInstance()).matches(lines).matched())
-                queries = getMoleculesFromRGroupQuery(query, aromaticityMode);
-            else if(lines.size() > 1)
-                queries = Arrays.asList(MoleculeCreator.getMoleculeFromMolfile(query, aromaticityMode));
-            else
-                queries = Arrays.asList(MoleculeCreator.getMoleculeFromSmiles(query, aromaticityMode));
+                case SMILES:
+                    queries = Arrays.asList(MoleculeCreator.getMoleculeFromSmiles(query, aromaticityMode));
+                    break;
+
+                case RGROUP:
+                    queries = getMoleculesFromRGroupQuery(query, aromaticityMode);
+                    break;
+
+                case UNSPECIFIED:
+                    List<String> lines = Arrays.asList(query.split("\\n"));
+
+                    if(((RGroupQueryFormat) RGroupQueryFormat.getInstance()).matches(lines).matched())
+                        queries = getMoleculesFromRGroupQuery(query, aromaticityMode);
+                    else if(lines.size() > 1)
+                        queries = Arrays.asList(MoleculeCreator.getMoleculeFromMolfile(query, aromaticityMode));
+                    else
+                        queries = Arrays.asList(MoleculeCreator.getMoleculeFromSmiles(query, aromaticityMode));
+
+                    break;
+            }
 
 
             if(tautomerMode == TautomerMode.INCHI)

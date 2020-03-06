@@ -18,6 +18,7 @@ import cz.iocb.elchem.lucene.SubstructureQuery;
 import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.ChargeMode;
 import cz.iocb.elchem.molecule.IsotopeMode;
+import cz.iocb.elchem.molecule.QueryFormat;
 import cz.iocb.elchem.molecule.SearchMode;
 import cz.iocb.elchem.molecule.StereoMode;
 import cz.iocb.elchem.molecule.TautomerMode;
@@ -30,6 +31,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
 
     public static final ParseField FIELD_FIELD = new ParseField("field");
     public static final ParseField MOLECULE_FIELD = new ParseField("molecule");
+    public static final ParseField FORMAT_FIELD = new ParseField("format");
     public static final ParseField SEARCH_MODE_FIELD = new ParseField("search_mode");
     public static final ParseField CHARGE_MODE_FIELD = new ParseField("charge_mode");
     public static final ParseField ISOTOPE_MODE_FIELD = new ParseField("isotope_mode");
@@ -40,6 +42,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
 
     private String fieldName;
     private String molecule;
+    private QueryFormat queryFormat;
     private SearchMode searchMode = SearchMode.SUBSTRUCTURE;
     private ChargeMode chargeMode = ChargeMode.DEFAULT_AS_ANY;
     private IsotopeMode isotopeMode = IsotopeMode.IGNORE;
@@ -59,6 +62,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
 
         fieldName = in.readString();
         molecule = in.readString();
+        queryFormat = in.readEnum(QueryFormat.class);
         searchMode = in.readEnum(SearchMode.class);
         chargeMode = in.readEnum(ChargeMode.class);
         isotopeMode = in.readEnum(IsotopeMode.class);
@@ -73,6 +77,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     {
         out.writeString(fieldName);
         out.writeString(molecule);
+        out.writeEnum(queryFormat);
         out.writeEnum(searchMode);
         out.writeEnum(chargeMode);
         out.writeEnum(isotopeMode);
@@ -86,6 +91,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     {
         String fieldPattern = null;
         String moleculePattern = null;
+        QueryFormat queryFormatPattern = QueryFormat.UNSPECIFIED;
         SearchMode searchModePattern = SearchMode.SUBSTRUCTURE;
         ChargeMode chargeModePattern = ChargeMode.DEFAULT_AS_ANY;
         IsotopeMode isotopeModePattern = IsotopeMode.IGNORE;
@@ -114,6 +120,14 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
                 else if(MOLECULE_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
                     moleculePattern = parser.text();
+                }
+                else if(FORMAT_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
+                {
+                    String value = parser.text();
+                    queryFormatPattern = QueryFormat.valueOf(value.toUpperCase());
+
+                    if(queryFormatPattern == null)
+                        throw new ParsingException(parser.getTokenLocation(), "unknown query format [{}]", value);
                 }
                 else if(SEARCH_MODE_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
@@ -200,6 +214,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         SubstructureQueryBuilder builder = new SubstructureQueryBuilder();
         builder.fieldName = fieldPattern;
         builder.molecule = moleculePattern;
+        builder.queryFormat = queryFormatPattern;
         builder.searchMode = searchModePattern;
         builder.chargeMode = chargeModePattern;
         builder.isotopeMode = isotopeModePattern;
@@ -218,6 +233,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         builder.startObject(NAME);
         builder.field(FIELD_FIELD.getPreferredName(), fieldName);
         builder.field(MOLECULE_FIELD.getPreferredName(), molecule);
+        builder.field(FORMAT_FIELD.getPreferredName(), queryFormat.name().toLowerCase());
         builder.field(SEARCH_MODE_FIELD.getPreferredName(), searchMode.name().toLowerCase());
         builder.field(CHARGE_MODE_FIELD.getPreferredName(), chargeMode.name().toLowerCase());
         builder.field(ISOTOPE_MODE_FIELD.getPreferredName(), isotopeMode.name().toLowerCase());
@@ -234,8 +250,8 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     {
         try
         {
-            return new SubstructureQuery(fieldName, molecule, searchMode, chargeMode, isotopeMode, stereoMode,
-                    aromaticityMode, tautomerMode);
+            return new SubstructureQuery(fieldName, molecule, queryFormat, searchMode, chargeMode, isotopeMode,
+                    stereoMode, aromaticityMode, tautomerMode);
         }
         catch(CDKException | TimeoutException e)
         {

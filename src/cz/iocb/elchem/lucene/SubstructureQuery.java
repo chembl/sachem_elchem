@@ -38,6 +38,7 @@ import cz.iocb.elchem.molecule.ChargeMode;
 import cz.iocb.elchem.molecule.Isomorphism;
 import cz.iocb.elchem.molecule.IsotopeMode;
 import cz.iocb.elchem.molecule.MoleculeCreator;
+import cz.iocb.elchem.molecule.QueryFormat;
 import cz.iocb.elchem.molecule.SearchMode;
 import cz.iocb.elchem.molecule.StereoMode;
 import cz.iocb.elchem.molecule.TautomerMode;
@@ -58,9 +59,9 @@ public class SubstructureQuery extends Query
     private final Query subquery;
 
 
-    public SubstructureQuery(String field, String query, SearchMode graphMode, ChargeMode chargeMode,
-            IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode, TautomerMode tautomerMode)
-            throws CDKException, IOException, TimeoutException
+    public SubstructureQuery(String field, String query, QueryFormat format, SearchMode graphMode,
+            ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode,
+            TautomerMode tautomerMode) throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
@@ -71,7 +72,8 @@ public class SubstructureQuery extends Query
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
 
-        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, aromaticityMode, tautomerMode);
+        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, format, aromaticityMode,
+                tautomerMode);
         ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecules.size());
 
         for(IAtomContainer molecule : queryMolecules)
