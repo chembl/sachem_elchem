@@ -38,6 +38,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     public static final ParseField STEREO_MODE_FIELD = new ParseField("stereo_mode");
     public static final ParseField AROMATICITY_MODE_FIELD = new ParseField("aromaticity_mode");
     public static final ParseField TAUTOMER_MODE_FIELD = new ParseField("tautomer_mode");
+    public static final ParseField MATCHING_LIMIT_FIELD = new ParseField("matching_limit");
 
 
     private String fieldName;
@@ -49,6 +50,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     private StereoMode stereoMode = StereoMode.IGNORE;
     private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
     private TautomerMode tautomerMode = TautomerMode.IGNORE;
+    private int matchingLimit = 0;
 
 
     public SubstructureQueryBuilder()
@@ -69,6 +71,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         stereoMode = in.readEnum(StereoMode.class);
         aromaticityMode = in.readEnum(AromaticityMode.class);
         tautomerMode = in.readEnum(TautomerMode.class);
+        matchingLimit = in.readInt();
     }
 
 
@@ -84,6 +87,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         out.writeEnum(stereoMode);
         out.writeEnum(aromaticityMode);
         out.writeEnum(tautomerMode);
+        out.writeInt(matchingLimit);
     }
 
 
@@ -98,6 +102,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         StereoMode stereoModePattern = StereoMode.IGNORE;
         AromaticityMode aromaticityModePattern = AromaticityMode.AUTO;
         TautomerMode tautomerModePattern = TautomerMode.IGNORE;
+        int matchingLimitPattern = 0;
 
         String queryName = null;
         float boost = AbstractQueryBuilder.DEFAULT_BOOST;
@@ -177,6 +182,14 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
                     if(tautomerModePattern == null)
                         throw new ParsingException(parser.getTokenLocation(), "unknown tautomer mode [{}]", value);
                 }
+                else if(MATCHING_LIMIT_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
+                {
+                    matchingLimitPattern = parser.intValue();
+
+                    if(matchingLimitPattern < 0)
+                        throw new ParsingException(parser.getTokenLocation(), "wrong matching limit value [{}]",
+                                matchingLimitPattern);
+                }
                 else if(AbstractQueryBuilder.NAME_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
                     queryName = parser.text();
@@ -221,6 +234,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         builder.stereoMode = stereoModePattern;
         builder.aromaticityMode = aromaticityModePattern;
         builder.tautomerMode = tautomerModePattern;
+        builder.matchingLimit = matchingLimitPattern;
         builder.queryName(queryName);
         builder.boost(boost);
         return builder;
@@ -240,6 +254,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         builder.field(STEREO_MODE_FIELD.getPreferredName(), stereoMode.name().toLowerCase());
         builder.field(AROMATICITY_MODE_FIELD.getPreferredName(), aromaticityMode.name().toLowerCase());
         builder.field(TAUTOMER_MODE_FIELD.getPreferredName(), tautomerMode.name().toLowerCase());
+        builder.field(MATCHING_LIMIT_FIELD.getPreferredName(), matchingLimit);
         printBoostAndQueryName(builder);
         builder.endObject();
     }
@@ -251,7 +266,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         try
         {
             return new SubstructureQuery(fieldName, molecule, queryFormat, searchMode, chargeMode, isotopeMode,
-                    stereoMode, aromaticityMode, tautomerMode);
+                    stereoMode, aromaticityMode, tautomerMode, matchingLimit);
         }
         catch(CDKException | TimeoutException e)
         {

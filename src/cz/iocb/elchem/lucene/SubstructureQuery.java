@@ -35,9 +35,10 @@ import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.BinaryMolecule;
 import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
 import cz.iocb.elchem.molecule.ChargeMode;
-import cz.iocb.elchem.molecule.Isomorphism;
 import cz.iocb.elchem.molecule.IsotopeMode;
 import cz.iocb.elchem.molecule.MoleculeCreator;
+import cz.iocb.elchem.molecule.NativeIsomorphism;
+import cz.iocb.elchem.molecule.NativeIsomorphism.IterationLimitExceededException;
 import cz.iocb.elchem.molecule.QueryFormat;
 import cz.iocb.elchem.molecule.SearchMode;
 import cz.iocb.elchem.molecule.StereoMode;
@@ -55,13 +56,14 @@ public class SubstructureQuery extends Query
     private final StereoMode stereoMode;
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
+    private final int iterationLimit;
 
     private final Query subquery;
 
 
     public SubstructureQuery(String field, String query, QueryFormat format, SearchMode graphMode,
             ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode,
-            TautomerMode tautomerMode) throws CDKException, IOException, TimeoutException
+            TautomerMode tautomerMode, int iterationLimit) throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
@@ -71,6 +73,7 @@ public class SubstructureQuery extends Query
         this.stereoMode = stereoMode;
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
+        this.iterationLimit = iterationLimit;
 
         List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, format, aromaticityMode,
                 tautomerMode);
@@ -109,7 +112,7 @@ public class SubstructureQuery extends Query
         return field.equals(other.field) && query.equals(other.query) && searchMode.equals(other.searchMode)
                 && chargeMode.equals(other.chargeMode) && isotopeMode.equals(other.isotopeMode)
                 && stereoMode.equals(other.stereoMode) && aromaticityMode.equals(other.aromaticityMode)
-                && tautomerMode.equals(other.tautomerMode);
+                && tautomerMode.equals(other.tautomerMode) && iterationLimit == other.iterationLimit;
     }
 
 
@@ -142,14 +145,11 @@ public class SubstructureQuery extends Query
         private final Query parentQuery;
         private final IAtomContainer tautomer;
 
-        boolean extended;
         private final Set<Integer> fp;
         private final Map<Integer, Set<Integer>> info;
         private final BinaryMolecule molecule;
         private final byte[] moleculeData;
-        private final int originalMoleculeSize;
         private final boolean[] restH;
-        private final Isomorphism isomorphism;
 
 
         SingleSubstructureQuery(IAtomContainer tautomer) throws CDKException, IOException
@@ -163,16 +163,7 @@ public class SubstructureQuery extends Query
             for(int i = 0; i < tautomer.getAtomCount(); i++)
                 restH[i] = Boolean.TRUE.equals(tautomer.getAtom(i).getProperty(CDKConstants.REST_H));
 
-
-            this.extended = BinaryMolecule.isExtended(moleculeData, chargeMode != ChargeMode.IGNORE,
-                    isotopeMode != IsotopeMode.IGNORE);
-
-            this.molecule = new BinaryMolecule(moleculeData, restH, extended, chargeMode != ChargeMode.IGNORE,
-                    isotopeMode != IsotopeMode.IGNORE, stereoMode != StereoMode.IGNORE, false, false);
-
-            this.originalMoleculeSize = molecule.getOriginalAtomCount() + molecule.getOriginalBondCount();
-            this.isomorphism = new Isomorphism(molecule, searchMode, chargeMode, isotopeMode, stereoMode);
-
+            this.molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
             this.info = new HashMap<Integer, Set<Integer>>();
             this.fp = IOCBFingerprint.getSubstructureFingerprint(molecule, info);
         }
@@ -331,6 +322,7 @@ public class SubstructureQuery extends Query
                 private float score = 0;
                 private final Scorer innerScorer;
                 private final BinaryDocValues molDocValue;
+                private final NativeIsomorphism isomorphism;
 
 
                 protected SingleSubstructureScorer(LeafReaderContext context, Scorer scorer) throws IOException
@@ -338,6 +330,9 @@ public class SubstructureQuery extends Query
                     super(SingleSubstructureWeight.this);
                     this.innerScorer = scorer;
                     this.molDocValue = DocValues.getBinary(context.reader(), field);
+
+                    this.isomorphism = new NativeIsomorphism(moleculeData, restH, searchMode, chargeMode, isotopeMode,
+                            stereoMode);
                 }
 
 
@@ -365,43 +360,18 @@ public class SubstructureQuery extends Query
                 boolean isValid() throws IOException
                 {
                     molDocValue.advanceExact(docID);
-                    byte[] data = molDocValue.binaryValue().bytes;
+                    byte[] target = molDocValue.binaryValue().bytes;
 
-                    BinaryMolecule target;
-                    boolean match;
-
-                    if(!extended && (BinaryMolecule.hasPseudoAtom(data) || BinaryMolecule.hasMultivalentHydrogen(data)))
+                    try
                     {
-                        BinaryMolecule molecule = new BinaryMolecule(moleculeData, restH, true,
-                                chargeMode != ChargeMode.IGNORE, isotopeMode != IsotopeMode.IGNORE,
-                                stereoMode != StereoMode.IGNORE, false, false);
-
-                        Isomorphism isomorphism = new Isomorphism(molecule, searchMode, chargeMode, isotopeMode,
-                                stereoMode);
-
-
-                        target = new BinaryMolecule(data, null, true, chargeMode != ChargeMode.IGNORE,
-                                isotopeMode != IsotopeMode.IGNORE, stereoMode != StereoMode.IGNORE, false, false);
-
-                        match = isomorphism.match(target);
+                        this.score = isomorphism.match(target, iterationLimit);
                     }
-                    else
+                    catch(IterationLimitExceededException e)
                     {
-                        target = new BinaryMolecule(data, null, extended, chargeMode != ChargeMode.IGNORE,
-                                isotopeMode != IsotopeMode.IGNORE, stereoMode != StereoMode.IGNORE,
-                                chargeMode == ChargeMode.DEFAULT_AS_UNCHARGED,
-                                isotopeMode == IsotopeMode.DEFAULT_AS_STANDARD);
-
-                        match = isomorphism.match(target);
+                        this.score = Float.NaN;
                     }
 
-                    if(match)
-                    {
-                        int size = (target.getOriginalAtomCount() + target.getOriginalBondCount());
-                        score = size == 0 ? 0.0f : originalMoleculeSize / (float) size;
-                    }
-
-                    return match;
+                    return !Float.isNaN(score);
                 }
 
 

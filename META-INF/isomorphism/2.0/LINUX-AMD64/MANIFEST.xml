@@ -1,0 +1,3 @@
+<manifest id="isomorphism" version="2.0" platform="LINUX-AMD64" >
+  <file library="true">libisomorphism.so</file>
+</manifest>

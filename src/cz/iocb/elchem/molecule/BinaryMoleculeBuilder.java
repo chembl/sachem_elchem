@@ -218,6 +218,8 @@ public class BinaryMoleculeBuilder
         }
 
 
+        int[] bondsCount = new int[molecule.getAtomCount()];
+
         /* write bonds */
         int heavyAtomCount = cAtomCount + xAtomCount;
         int bondNumber = 0;
@@ -231,6 +233,8 @@ public class BinaryMoleculeBuilder
             if(a1idx < heavyAtomCount && a2idx < heavyAtomCount)
             {
                 b.setProperty(BOND_NUMBER, bondNumber++);
+                bondsCount[a1idx]++;
+                bondsCount[a2idx]++;
 
                 stream.write(a1idx % 256);
                 stream.write(a1idx / 256 << 4 | a2idx / 256);
@@ -255,6 +259,8 @@ public class BinaryMoleculeBuilder
                     && (a2idx < heavyAtomCount || molecule.getConnectedBondsCount(a2) > 1))
             {
                 b.setProperty(BOND_NUMBER, bondNumber++);
+                bondsCount[a1idx]++;
+                bondsCount[a2idx]++;
 
                 stream.write(a1idx % 256);
                 stream.write(a1idx / 256 << 4 | a2idx / 256);
@@ -285,6 +291,9 @@ public class BinaryMoleculeBuilder
                 }
                 else
                 {
+                    bondsCount[i]++;
+                    bondsCount[idx]++;
+
                     stream.write(getBondType(molecule.getBond(atom, other)) << 4 | idx / 256);
                     stream.write(idx % 256);
                 }
@@ -310,11 +319,18 @@ public class BinaryMoleculeBuilder
 
                 for(int h = 0; h < atom.getImplicitHydrogenCount(); h++)
                 {
+                    bondsCount[idx]++;
+
                     stream.write(BondType.SINGLE << 4 | idx / 256);
                     stream.write(idx % 256);
                 }
             }
         }
+
+
+        for(int count : bondsCount)
+            if(count > 16)
+                throw new CDKException("too high atom valence");
 
 
         /* write charges & isotopes */
