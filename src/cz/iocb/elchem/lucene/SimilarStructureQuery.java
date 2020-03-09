@@ -46,7 +46,7 @@ public class SimilarStructureQuery extends Query
 
     private final String field;
     private final String query;
-
+    private final QueryFormat queryFormat;
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
     private final float threshold;
@@ -54,18 +54,19 @@ public class SimilarStructureQuery extends Query
     private final Query subquery;
 
 
-    public SimilarStructureQuery(String field, String query, QueryFormat format, float threshold, int maximumDepth,
+    public SimilarStructureQuery(String field, String query, QueryFormat queryFormat, float threshold, int maximumDepth,
             AromaticityMode aromaticityMode, TautomerMode tautomerMode)
             throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
+        this.queryFormat = queryFormat;
         this.threshold = threshold;
         this.maximumDepth = maximumDepth;
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
 
-        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, format, aromaticityMode,
+        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, queryFormat, aromaticityMode,
                 tautomerMode);
         ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecules.size());
 
@@ -92,8 +93,9 @@ public class SimilarStructureQuery extends Query
 
     private boolean equalsTo(SimilarStructureQuery other)
     {
-        return field.equals(other.field) && query.equals(other.query) && aromaticityMode.equals(other.aromaticityMode)
-                && tautomerMode.equals(other.tautomerMode);
+        return field.equals(other.field) && query.equals(other.query) && queryFormat.equals(other.queryFormat)
+                && aromaticityMode.equals(other.aromaticityMode) && tautomerMode.equals(other.tautomerMode)
+                && threshold == other.threshold && maximumDepth == other.maximumDepth;
     }
 
 

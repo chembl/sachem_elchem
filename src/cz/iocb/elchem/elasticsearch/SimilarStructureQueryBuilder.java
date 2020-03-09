@@ -236,7 +236,11 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
     @Override
     protected boolean doEquals(SimilarStructureQueryBuilder other)
     {
-        return Objects.equals(fieldName, other.fieldName) && Objects.equals(molecule, other.molecule);
+        return Objects.equals(fieldName, other.fieldName) && Objects.equals(molecule, other.molecule)
+                && Objects.equals(queryFormat, other.queryFormat)
+                && Objects.equals(aromaticityMode, other.aromaticityMode)
+                && Objects.equals(tautomerMode, other.tautomerMode) && threshold == other.threshold
+                && maximumDepth == other.maximumDepth;
     }
 
 

@@ -285,7 +285,12 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     @Override
     protected boolean doEquals(SubstructureQueryBuilder other)
     {
-        return Objects.equals(fieldName, other.fieldName) && Objects.equals(molecule, other.molecule);
+        return Objects.equals(fieldName, other.fieldName) && Objects.equals(molecule, other.molecule)
+                && Objects.equals(queryFormat, other.queryFormat) && Objects.equals(searchMode, other.searchMode)
+                && Objects.equals(chargeMode, other.chargeMode) && Objects.equals(isotopeMode, other.isotopeMode)
+                && Objects.equals(stereoMode, other.stereoMode)
+                && Objects.equals(aromaticityMode, other.aromaticityMode)
+                && Objects.equals(tautomerMode, other.tautomerMode) && matchingLimit == other.matchingLimit;
     }
 
 

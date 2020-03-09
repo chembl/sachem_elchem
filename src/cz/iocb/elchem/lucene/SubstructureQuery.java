@@ -50,6 +50,7 @@ public class SubstructureQuery extends Query
 {
     private final String field;
     private final String query;
+    private final QueryFormat queryFormat;
     private final SearchMode searchMode;
     private final ChargeMode chargeMode;
     private final IsotopeMode isotopeMode;
@@ -61,12 +62,13 @@ public class SubstructureQuery extends Query
     private final Query subquery;
 
 
-    public SubstructureQuery(String field, String query, QueryFormat format, SearchMode graphMode,
+    public SubstructureQuery(String field, String query, QueryFormat queryFormat, SearchMode graphMode,
             ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode,
             TautomerMode tautomerMode, int iterationLimit) throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
+        this.queryFormat = queryFormat;
         this.searchMode = graphMode;
         this.chargeMode = chargeMode;
         this.isotopeMode = isotopeMode;
@@ -75,7 +77,7 @@ public class SubstructureQuery extends Query
         this.tautomerMode = tautomerMode;
         this.iterationLimit = iterationLimit;
 
-        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, format, aromaticityMode,
+        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, queryFormat, aromaticityMode,
                 tautomerMode);
         ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecules.size());
 
@@ -109,10 +111,11 @@ public class SubstructureQuery extends Query
 
     private boolean equalsTo(SubstructureQuery other)
     {
-        return field.equals(other.field) && query.equals(other.query) && searchMode.equals(other.searchMode)
-                && chargeMode.equals(other.chargeMode) && isotopeMode.equals(other.isotopeMode)
-                && stereoMode.equals(other.stereoMode) && aromaticityMode.equals(other.aromaticityMode)
-                && tautomerMode.equals(other.tautomerMode) && iterationLimit == other.iterationLimit;
+        return field.equals(other.field) && query.equals(other.query) && queryFormat.equals(other.queryFormat)
+                && searchMode.equals(other.searchMode) && chargeMode.equals(other.chargeMode)
+                && isotopeMode.equals(other.isotopeMode) && stereoMode.equals(other.stereoMode)
+                && aromaticityMode.equals(other.aromaticityMode) && tautomerMode.equals(other.tautomerMode)
+                && iterationLimit == other.iterationLimit;
     }
 
 
