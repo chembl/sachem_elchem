@@ -50,19 +50,19 @@ public class SimilarStructureQuery extends Query
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
     private final float threshold;
-    private final int maximumDepth;
+    private final int similarityRadius;
     private final Query subquery;
 
 
-    public SimilarStructureQuery(String field, String query, QueryFormat queryFormat, float threshold, int maximumDepth,
-            AromaticityMode aromaticityMode, TautomerMode tautomerMode)
+    public SimilarStructureQuery(String field, String query, QueryFormat queryFormat, float threshold,
+            int similarityRadius, AromaticityMode aromaticityMode, TautomerMode tautomerMode)
             throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
         this.queryFormat = queryFormat;
         this.threshold = threshold;
-        this.maximumDepth = maximumDepth;
+        this.similarityRadius = similarityRadius;
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
 
@@ -95,7 +95,7 @@ public class SimilarStructureQuery extends Query
     {
         return field.equals(other.field) && query.equals(other.query) && queryFormat.equals(other.queryFormat)
                 && aromaticityMode.equals(other.aromaticityMode) && tautomerMode.equals(other.tautomerMode)
-                && threshold == other.threshold && maximumDepth == other.maximumDepth;
+                && threshold == other.threshold && similarityRadius == other.similarityRadius;
     }
 
 
@@ -137,7 +137,7 @@ public class SimilarStructureQuery extends Query
 
             BinaryMolecule molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
 
-            this.fp = IOCBFingerprint.getSimilarityFingerprint(molecule, maximumDepth);
+            this.fp = IOCBFingerprint.getSimilarityFingerprint(molecule, similarityRadius);
             this.fpSize = fp.stream().map(i -> i.size()).reduce(0, Integer::sum);
         }
 
@@ -192,8 +192,8 @@ public class SimilarStructureQuery extends Query
                 Builder builder = new BooleanQuery.Builder();
                 FingerprintBitMapping mapping = new FingerprintBitMapping();
 
-                int min = maximumDepth * iterationSizeOffset + (int) Math.floor(fpSize * threshold);
-                int max = maximumDepth * iterationSizeOffset + (int) Math.ceil(fpSize / threshold);
+                int min = similarityRadius * iterationSizeOffset + (int) Math.floor(fpSize * threshold);
+                int max = similarityRadius * iterationSizeOffset + (int) Math.ceil(fpSize / threshold);
 
                 builder.add(IntPoint.newRangeQuery(field, min, max), BooleanClause.Occur.MUST);
 

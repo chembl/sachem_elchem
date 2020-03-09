@@ -29,7 +29,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
     public static final ParseField MOLECULE_FIELD = new ParseField("molecule");
     public static final ParseField FORMAT_FIELD = new ParseField("format");
     public static final ParseField THRESHOLD_FIELD = new ParseField("threshold");
-    public static final ParseField MAXIMUM_DEPTH_FIELD = new ParseField("maximum_depth");
+    public static final ParseField SIMILARITY_RADIUS_FIELD = new ParseField("similarity_radius", "maximum_depth");
     public static final ParseField AROMATICITY_MODE_FIELD = new ParseField("aromaticity_mode");
     public static final ParseField TAUTOMER_MODE_FIELD = new ParseField("tautomer_mode");
 
@@ -38,7 +38,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
     private String molecule;
     private QueryFormat queryFormat;
     private float threshold = 0.8f;
-    private int maximumDepth = 1;
+    private int similarityRadius = 1;
     private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
     private TautomerMode tautomerMode = TautomerMode.IGNORE;
 
@@ -56,7 +56,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
         molecule = in.readString();
         queryFormat = in.readEnum(QueryFormat.class);
         threshold = in.readFloat();
-        maximumDepth = in.readInt();
+        similarityRadius = in.readInt();
         aromaticityMode = in.readEnum(AromaticityMode.class);
         tautomerMode = in.readEnum(TautomerMode.class);
     }
@@ -69,7 +69,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
         out.writeString(molecule);
         out.writeEnum(queryFormat);
         out.writeFloat(threshold);
-        out.writeInt(maximumDepth);
+        out.writeInt(similarityRadius);
         out.writeEnum(aromaticityMode);
         out.writeEnum(tautomerMode);
     }
@@ -81,7 +81,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
         String moleculePattern = null;
         QueryFormat queryFormatPattern = QueryFormat.UNSPECIFIED;
         float thresholdPattern = 0.8f;
-        int maximumDepthPattern = 1;
+        int similarityRadiusPattern = 1;
         AromaticityMode aromaticityModePattern = AromaticityMode.AUTO;
         TautomerMode tautomerModePattern = TautomerMode.IGNORE;
 
@@ -123,13 +123,14 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
                         throw new ParsingException(parser.getTokenLocation(), "wrong threshold value [{}]",
                                 thresholdPattern);
                 }
-                else if(MAXIMUM_DEPTH_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
+                else if(SIMILARITY_RADIUS_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
-                    maximumDepthPattern = parser.intValue();
+                    similarityRadiusPattern = parser.intValue();
 
-                    if(maximumDepthPattern < 0 || maximumDepthPattern > SimilarityFingerprintFieldMapper.maximumDepth)
-                        throw new ParsingException(parser.getTokenLocation(), "wrong maximum depth value [{}]",
-                                maximumDepthPattern);
+                    if(similarityRadiusPattern < 0
+                            || similarityRadiusPattern > SimilarityFingerprintFieldMapper.maximumSimilarityRadius)
+                        throw new ParsingException(parser.getTokenLocation(), "wrong similarity radius value [{}]",
+                                similarityRadiusPattern);
                 }
                 else if(AROMATICITY_MODE_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
@@ -186,7 +187,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
         builder.molecule = moleculePattern;
         builder.queryFormat = queryFormatPattern;
         builder.threshold = thresholdPattern;
-        builder.maximumDepth = maximumDepthPattern;
+        builder.similarityRadius = similarityRadiusPattern;
         builder.aromaticityMode = aromaticityModePattern;
         builder.tautomerMode = tautomerModePattern;
         builder.queryName(queryName);
@@ -203,7 +204,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
         builder.field(MOLECULE_FIELD.getPreferredName(), molecule);
         builder.field(FORMAT_FIELD.getPreferredName(), queryFormat.name().toLowerCase());
         builder.field(THRESHOLD_FIELD.getPreferredName(), threshold);
-        builder.field(MAXIMUM_DEPTH_FIELD.getPreferredName(), maximumDepth);
+        builder.field(SIMILARITY_RADIUS_FIELD.getPreferredName(), similarityRadius);
         builder.field(AROMATICITY_MODE_FIELD.getPreferredName(), aromaticityMode.name().toLowerCase());
         builder.field(TAUTOMER_MODE_FIELD.getPreferredName(), tautomerMode.name().toLowerCase());
         printBoostAndQueryName(builder);
@@ -216,8 +217,8 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
     {
         try
         {
-            return new SimilarStructureQuery(fieldName, molecule, queryFormat, threshold, maximumDepth, aromaticityMode,
-                    tautomerMode);
+            return new SimilarStructureQuery(fieldName, molecule, queryFormat, threshold, similarityRadius,
+                    aromaticityMode, tautomerMode);
         }
         catch(CDKException | TimeoutException e)
         {
@@ -240,7 +241,7 @@ public class SimilarStructureQueryBuilder extends AbstractQueryBuilder<SimilarSt
                 && Objects.equals(queryFormat, other.queryFormat)
                 && Objects.equals(aromaticityMode, other.aromaticityMode)
                 && Objects.equals(tautomerMode, other.tautomerMode) && threshold == other.threshold
-                && maximumDepth == other.maximumDepth;
+                && similarityRadius == other.similarityRadius;
     }
 
 

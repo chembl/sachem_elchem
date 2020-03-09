@@ -36,7 +36,7 @@ import cz.iocb.elchem.molecule.MoleculeCreator;
 public class SimilarityFingerprintFieldMapper extends FieldMapper
 {
     public static final String CONTENT_TYPE = "similarity_fingerprint";
-    public static final int maximumDepth = 3;
+    public static final int maximumSimilarityRadius = 3;
 
 
     public static class Defaults
@@ -171,7 +171,7 @@ public class SimilarityFingerprintFieldMapper extends FieldMapper
 
             String name = fieldType().name();
             BinaryMolecule molecule = new BinaryMolecule(binary);
-            List<List<Integer>> fp = IOCBFingerprint.getSimilarityFingerprint(molecule, maximumDepth);
+            List<List<Integer>> fp = IOCBFingerprint.getSimilarityFingerprint(molecule, maximumSimilarityRadius);
 
 
             byte[] array = new byte[fp.stream().map(i -> i.size() + 1).reduce(0, Integer::sum) * Integer.BYTES];
