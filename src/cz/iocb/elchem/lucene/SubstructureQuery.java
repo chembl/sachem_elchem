@@ -367,11 +367,17 @@ public class SubstructureQuery extends Query
 
                     try
                     {
-                        this.score = isomorphism.match(target, iterationLimit);
+                        score = isomorphism.match(target, iterationLimit);
+
+                        if(score == Float.NEGATIVE_INFINITY)
+                            throw new RuntimeException();
+
+                        if(score == 0)
+                            score = Float.MIN_VALUE;
                     }
                     catch(IterationLimitExceededException e)
                     {
-                        this.score = Float.NaN;
+                        score = Float.NaN;
                     }
 
                     return !Float.isNaN(score);
