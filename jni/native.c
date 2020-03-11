@@ -130,10 +130,12 @@ JNIEXPORT jfloat JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_match(JN
 
 JNIEXPORT void JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_init(JNIEnv *env, jclass clazz)
 {
-    outOfMemoryErrorClass = (*env)->FindClass(env, "java/lang/OutOfMemoryError");
+    outOfMemoryErrorClass = (jclass) (*env)->NewGlobalRef(env, (*env)->FindClass(env, "java/lang/OutOfMemoryError"));
     outOfMemoryErrorConstructor = (*env)->GetMethodID(env, outOfMemoryErrorClass, "<init>", "()V");
-    iterationLimitExceededExceptionClass = (*env)->FindClass(env, "cz/iocb/elchem/molecule/NativeIsomorphism$IterationLimitExceededException");
+
+    iterationLimitExceededExceptionClass = (jclass) (*env)->NewGlobalRef(env, (*env)->FindClass(env, "cz/iocb/elchem/molecule/NativeIsomorphism$IterationLimitExceededException"));
     iterationLimitExceededExceptionConstructor = (*env)->GetMethodID(env, iterationLimitExceededExceptionClass, "<init>", "()V");
-    byteBufferClass = (*env)->FindClass(env, "java/nio/ByteBuffer");
+
+    byteBufferClass = (jclass) (*env)->NewGlobalRef(env, (*env)->FindClass(env, "java/nio/ByteBuffer"));
     allocateDirectMethod = (*env)->GetStaticMethodID(env, byteBufferClass, "allocateDirect", "(I)Ljava/nio/ByteBuffer;");
 }
