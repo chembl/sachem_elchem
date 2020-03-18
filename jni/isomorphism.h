@@ -197,7 +197,7 @@ static inline size_t vf2state_mem_size(const uint8_t *restrict data, bool extend
 
 static inline size_t vf2state_extended_mem_size(const Molecule *restrict molecule)
 {
-    int atomCount = molecule->originalAtomCount;
+    int atomCount = molecule->heavyAtomCount + molecule->hydrogenAtomCount;
     return align_size(sizeof(VF2State)) + 3 * align_size(atomCount * sizeof(AtomIdx)) + align_size(atomCount * sizeof(VF2Undo));
 }
 
@@ -907,7 +907,7 @@ static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *r
 {
     if(likely(vf2state->graphMode != GRAPH_EXACT))
     {
-        if(vf2state->query->originalAtomCount > target->originalAtomCount)
+        if(vf2state->query->heavyAtomCount + vf2state->query->hydrogenAtomCount > target->heavyAtomCount + target->hydrogenAtomCount)
             return false;
 
         if(vf2state->queryAtomCount > target->atomCount || vf2state->query->bondCount > target->bondCount)
@@ -915,7 +915,7 @@ static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *r
     }
     else
     {
-        if(vf2state->query->originalAtomCount != target->originalAtomCount)
+        if(vf2state->query->heavyAtomCount + vf2state->query->hydrogenAtomCount != target->heavyAtomCount + target->hydrogenAtomCount)
             return false;
 
         if(vf2state->queryAtomCount != target->atomCount || vf2state->query->bondCount != target->bondCount)

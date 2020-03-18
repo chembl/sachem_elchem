@@ -76,8 +76,13 @@ typedef struct
 {
     int atomCount;
     int bondCount;
-    int originalAtomCount;
-    int originalBondCount;
+
+    int heavyAtomCount;
+    int heavyBondCount;
+
+    int hydrogenAtomCount;
+    int hydrogenBondCount;
+
     bool extended;
     bool hasPseudoAtom;
 
@@ -134,8 +139,8 @@ static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8
 
 static inline size_t molecule_extended_mem_size(const Molecule *restrict molecule)
 {
-    int atomCount = molecule->originalAtomCount;
-    int bondCount = molecule->originalBondCount;
+    int atomCount = molecule->heavyAtomCount + molecule->hydrogenAtomCount;
+    int bondCount = molecule->heavyBondCount + molecule->hydrogenBondCount;
     bool withCharges = molecule->atomCharges;
     bool withIsotopes = molecule->atomMasses;
     bool withStereo = molecule->atomStereo;
@@ -181,8 +186,9 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
 
     int heavyAtomCount = xAtomCount + cAtomCount;
-    int originalAtomCount = heavyAtomCount + hAtomCount;
-    int originalBondCount = xBondCount + hAtomCount;
+    int heavyBondCount = xBondCount;
+    int hydrogenAtomCount = hAtomCount;
+    int hydrogenBondCount = hAtomCount;
     int atomCount = xAtomCount + cAtomCount;
     int bondCount = xBondCount;
 
@@ -257,6 +263,12 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
         if(y >= heavyAtomCount && x < atomCount)
             atomHydrogens[x]++;
 
+        if(x >= heavyAtomCount || y >= heavyAtomCount)
+        {
+            heavyBondCount--;
+            hydrogenBondCount++;
+        }
+
         if(x >= atomCount || y >= atomCount)
         {
             bondCount--;
@@ -317,7 +329,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
         if(value == 0)
         {
-            originalBondCount--;
+            hydrogenBondCount--;
 
             if(extended)
                 bondCount--;
@@ -397,8 +409,10 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
     molecule->atomCount = atomCount;
     molecule->bondCount = bondCount;
-    molecule->originalAtomCount = originalAtomCount;
-    molecule->originalBondCount = originalBondCount;
+    molecule->heavyAtomCount = heavyAtomCount;
+    molecule->heavyBondCount = heavyBondCount;
+    molecule->hydrogenAtomCount = hydrogenAtomCount;
+    molecule->hydrogenBondCount = hydrogenBondCount;
     molecule->extended = extended;
     molecule->hasPseudoAtom = hasPseudoAtom;
     molecule->atomNumbers = atomNumbers;
@@ -420,14 +434,14 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
 static inline Molecule *molecule_extend(void *memory, const Molecule *restrict template)
 {
-    int hydrogensCount = template->originalAtomCount - template->atomCount;
-
     Molecule *restrict molecule = alloc_memory(&memory, sizeof(Molecule));
 
-    molecule->atomCount = template->originalAtomCount;
-    molecule->bondCount = template->originalBondCount;
-    molecule->originalAtomCount = template->originalAtomCount;
-    molecule->originalBondCount = template->originalBondCount;
+    molecule->atomCount = template->heavyAtomCount + template->hydrogenAtomCount;
+    molecule->bondCount = template->heavyBondCount + template->hydrogenBondCount;
+    molecule->heavyAtomCount = template->heavyAtomCount;
+    molecule->heavyBondCount = template->heavyBondCount;
+    molecule->hydrogenAtomCount = template->hydrogenAtomCount;
+    molecule->hydrogenBondCount = template->hydrogenBondCount;
     molecule->extended = true;
     molecule->hasPseudoAtom = template->hasPseudoAtom;
 
@@ -435,7 +449,7 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     {
         molecule->restH = (uint8_t *) alloc_memory(&memory, molecule->atomCount * sizeof(uint8_t));
         memcpy(molecule->restH, template->restH, template->atomCount);
-        memset(molecule->restH + template->atomCount, 0, hydrogensCount);
+        memset(molecule->restH + template->atomCount, 0, template->hydrogenAtomCount);
     }
     else
     {
@@ -444,21 +458,21 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
 
     molecule->atomNumbers = (int8_t *) alloc_memory(&memory, molecule->atomCount);
     memcpy(molecule->atomNumbers, template->atomNumbers, template->atomCount);
-    memset(molecule->atomNumbers + template->atomCount, 1, hydrogensCount);
+    memset(molecule->atomNumbers + template->atomCount, 1, template->hydrogenAtomCount);
 
     molecule->atomHydrogens = (uint8_t *) alloc_memory(&memory, molecule->atomCount);
     memcpy(molecule->atomHydrogens, template->atomHydrogens, template->atomCount);
-    memset(molecule->atomHydrogens + template->atomCount, 0, hydrogensCount);
+    memset(molecule->atomHydrogens + template->atomCount, 0, template->hydrogenAtomCount);
 
     molecule->bondTypes = (uint8_t *) alloc_memory(&memory, molecule->bondCount);
     memcpy(molecule->bondTypes, template->bondTypes, template->bondCount);
-    memset(molecule->bondTypes + template->bondCount, BOND_SINGLE, hydrogensCount);
+    memset(molecule->bondTypes + template->bondCount, BOND_SINGLE, template->hydrogenAtomCount);
 
     if(template->atomCharges)
     {
         molecule->atomCharges = (int8_t *) alloc_memory(&memory, molecule->atomCount);
         memcpy(molecule->atomCharges, template->atomCharges, template->atomCount);
-        memset(molecule->atomCharges + template->atomCount, 0, hydrogensCount);
+        memset(molecule->atomCharges + template->atomCount, 0, template->hydrogenAtomCount);
     }
     else
     {
@@ -469,7 +483,7 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     {
         molecule->atomMasses = (int8_t *) alloc_memory(&memory, molecule->atomCount);
         memcpy(molecule->atomMasses, template->atomMasses, template->atomCount);
-        memset(molecule->atomMasses + template->atomCount, 0, hydrogensCount);
+        memset(molecule->atomMasses + template->atomCount, 0, template->hydrogenAtomCount);
     }
     else
     {
@@ -480,7 +494,7 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     {
         molecule->atomStereo = (uint8_t *) alloc_memory(&memory, molecule->atomCount);
         memcpy(molecule->atomStereo, template->atomStereo, template->atomCount);
-        memset(molecule->atomStereo + template->atomCount, 0, hydrogensCount);
+        memset(molecule->atomStereo + template->atomCount, 0, template->hydrogenAtomCount);
     }
     else
     {
@@ -491,7 +505,7 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     {
         molecule->bondStereo = (uint8_t *) alloc_memory(&memory, molecule->bondCount);
         memcpy(molecule->bondStereo, template->bondStereo, template->bondCount);
-        memset(molecule->bondStereo + template->bondCount, 0, hydrogensCount);
+        memset(molecule->bondStereo + template->bondCount, 0, template->hydrogenAtomCount);
     }
     else
     {
@@ -499,11 +513,11 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     }
 
     molecule->bondLists = (AtomIdx *) alloc_memory(&memory, BOND_LIST_BASE_SIZE * molecule->atomCount * sizeof(AtomIdx));
-    memcpy(molecule->bondLists, template->bondLists, template->atomCount * sizeof(AtomIdx));
+    memcpy(molecule->bondLists, template->bondLists, BOND_LIST_BASE_SIZE * template->atomCount * sizeof(AtomIdx));
 
     molecule->bondListSizes = (MolSize *) alloc_memory_zero(&memory, molecule->atomCount * sizeof(MolSize));
     memcpy(molecule->bondListSizes, template->bondListSizes, template->atomCount * sizeof(MolSize));
-    memset(molecule->bondListSizes + template->atomCount, 0, hydrogensCount * sizeof(MolSize));
+    memset(molecule->bondListSizes + template->atomCount, 0, template->hydrogenAtomCount * sizeof(MolSize));
 
     molecule->contains = (AtomIdx (*)[2]) alloc_memory(&memory, molecule->bondCount * 2 * sizeof(AtomIdx));
     memcpy(molecule->contains, template->contains, template->bondCount * 2 * sizeof(AtomIdx));

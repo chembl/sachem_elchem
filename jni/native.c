@@ -66,8 +66,7 @@ JNIEXPORT jfloat JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_match(JN
     }
 
 
-    bool extend = !isomorphism->query->extended && isomorphism->query->atomCount != isomorphism->query->originalAtomCount &&
-            molecule_has_multivalent_hydrogen(target);
+    bool extend = !isomorphism->query->extended && isomorphism->query->hydrogenAtomCount && molecule_has_multivalent_hydrogen(target);
 
     size_t targetsize = molecule_mem_size(target, NULL, extend || isomorphism->query->extended,
             isomorphism->chargeMode != CHARGE_IGNORE, isomorphism->isotopeMode != ISOTOPE_IGNORE,
@@ -109,9 +108,12 @@ JNIEXPORT jfloat JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_match(JN
 
     if(vf2state_match(isomorphism, molecule, molmemory + targetsize + isosize + molsize, limit))
     {
-        int querySize = isomorphism->query->originalAtomCount + isomorphism->query->originalBondCount;
-        int targetSize = molecule->originalAtomCount + molecule->originalBondCount;
-        score = targetSize == 0 ? 0.0f : querySize / (float) targetSize;
+        double heavyAtom = molecule->heavyAtomCount ? isomorphism->query->heavyAtomCount / (double) molecule->heavyAtomCount : 1.0;
+        double hydrogenAtom = molecule->hydrogenAtomCount ? isomorphism->query->hydrogenAtomCount / (double) molecule->hydrogenAtomCount : 1.0;
+        double heavyBond = molecule->heavyBondCount ? isomorphism->query->heavyBondCount / (double) molecule->heavyBondCount : 1.0;
+        double hydrogenBond = molecule->hydrogenBondCount ? isomorphism->query->hydrogenBondCount / (double) molecule->hydrogenBondCount : 1.0;
+
+        score = heavyAtom / 2 + heavyBond / 4 + hydrogenAtom / 8 + hydrogenBond / 16;
     }
     else if(unlikely(isomorphism->counter == 0))
     {
