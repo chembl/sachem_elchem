@@ -343,7 +343,9 @@ static inline bool vf2state_atom_matches(const VF2State *restrict vf2state, Atom
     int8_t queryAtomNumber = molecule_get_atom_number(vf2state->query, queryAtom);
     int8_t targetAtomNumber = molecule_get_atom_number(vf2state->target, targetAtom);
 
-    if(queryAtomNumber == UNKNOWN_ATOM_NUMBER || targetAtomNumber == UNKNOWN_ATOM_NUMBER)
+    if(vf2state->graphMode == GRAPH_EXACT)
+        return queryAtomNumber == targetAtomNumber;
+    else if(queryAtomNumber == UNKNOWN_ATOM_NUMBER || targetAtomNumber == UNKNOWN_ATOM_NUMBER)
         return false;
     else if(queryAtomNumber == targetAtomNumber || queryAtomNumber == R_ATOM_NUMBER)
         return true;
@@ -371,8 +373,9 @@ static inline bool vf2state_bond_matches(const VF2State *restrict vf2state, Atom
     uint8_t queryBondType = molecule_get_bond_type(vf2state->query, queryBond);
     uint8_t targetbondType = molecule_get_bond_type(vf2state->target, targetbond);
 
-
-    if(queryBondType == targetbondType || queryBondType == BOND_ANY)
+    if(vf2state->graphMode == GRAPH_EXACT)
+        return queryBondType == targetbondType;
+    else if(queryBondType == targetbondType || queryBondType == BOND_ANY)
         return true;
     else if(queryBondType == BOND_SINGLE_OR_DOUBLE)
         return targetbondType == BOND_SINGLE || targetbondType == BOND_DOUBLE;
@@ -411,20 +414,17 @@ static inline bool vf2state_is_feasible_pair(const VF2State *restrict vf2state)
     }
 
 
-    if(!vf2state->query->hasPseudoAtom && !vf2state->target->hasPseudoAtom)
+    if(likely(vf2state->graphMode == GRAPH_EXACT))
     {
-        if(likely(vf2state->graphMode != GRAPH_EXACT))
-        {
-            if(unlikely(molecule_get_hydrogen_count(vf2state->query, vf2state->queryIdx) >
-                    molecule_get_hydrogen_count(vf2state->target, vf2state->targetIdx)))
-                return false;
-        }
-        else
-        {
-            if(unlikely(molecule_get_hydrogen_count(vf2state->query, vf2state->queryIdx) !=
-                    molecule_get_hydrogen_count(vf2state->target, vf2state->targetIdx)))
-                return false;
-        }
+        if(unlikely(molecule_get_hydrogen_count(vf2state->query, vf2state->queryIdx) !=
+                molecule_get_hydrogen_count(vf2state->target, vf2state->targetIdx)))
+            return false;
+    }
+    else if(!vf2state->query->hasPseudoAtom && !vf2state->target->hasPseudoAtom)
+    {
+        if(unlikely(molecule_get_hydrogen_count(vf2state->query, vf2state->queryIdx) >
+                molecule_get_hydrogen_count(vf2state->target, vf2state->targetIdx)))
+            return false;
     }
 
 
@@ -525,8 +525,16 @@ static inline bool vf2state_is_stereo_valid(const VF2State *restrict vf2state)
         AtomIdx targetAtomIdx = vf2state->queryCore[queryAtomIdx];
         uint8_t targetStereo = molecule_get_atom_stereo(target, targetAtomIdx);
 
-        if(queryStereo != TETRAHEDRAL_STEREO_NONE && queryStereo != TETRAHEDRAL_STEREO_UNDEFINED)
+        if(queryStereo == TETRAHEDRAL_STEREO_UNDEFINED)
         {
+            if(vf2state->graphMode == GRAPH_EXACT && targetStereo != TETRAHEDRAL_STEREO_UNDEFINED)
+                return false;
+        }
+        else if(queryStereo != TETRAHEDRAL_STEREO_NONE)
+        {
+            if(vf2state->graphMode == GRAPH_EXACT && targetStereo == TETRAHEDRAL_STEREO_UNDEFINED)
+                return false;
+
             if(targetStereo == TETRAHEDRAL_STEREO_NONE || targetStereo == TETRAHEDRAL_STEREO_UNDEFINED)
                 continue;
 
@@ -657,8 +665,16 @@ static inline bool vf2state_is_stereo_valid(const VF2State *restrict vf2state)
         BondIdx targetBondIdx = molecule_get_bond(target, targetBondAtom0, targetBondAtom1);
         uint8_t targetStereo = molecule_get_bond_stereo(target, targetBondIdx);
 
-        if(queryStereo != BOND_STEREO_NONE && queryStereo != BOND_STEREO_UNDEFINED)
+        if(queryStereo == BOND_STEREO_UNDEFINED)
         {
+            if(vf2state->graphMode == GRAPH_EXACT && targetStereo != BOND_STEREO_UNDEFINED)
+                return false;
+        }
+        else if(queryStereo != BOND_STEREO_NONE)
+        {
+            if(vf2state->graphMode == GRAPH_EXACT && targetStereo == BOND_STEREO_UNDEFINED)
+                return false;
+
             if(targetStereo == BOND_STEREO_NONE || targetStereo == BOND_STEREO_UNDEFINED)
                 continue;
 
@@ -912,15 +928,24 @@ static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *r
         if(vf2state->query->heavyAtomCount + vf2state->query->hydrogenAtomCount > target->heavyAtomCount + target->hydrogenAtomCount)
             return false;
 
-        if(vf2state->queryAtomCount > target->atomCount || vf2state->query->bondCount > target->bondCount)
+        if(vf2state->queryAtomCount > target->atomCount)
+            return false;
+
+        if(vf2state->query->bondCount > target->bondCount)
             return false;
     }
     else
     {
-        if(vf2state->query->heavyAtomCount + vf2state->query->hydrogenAtomCount != target->heavyAtomCount + target->hydrogenAtomCount)
+        if(vf2state->query->heavyAtomCount != target->heavyAtomCount)
             return false;
 
-        if(vf2state->queryAtomCount != target->atomCount || vf2state->query->bondCount != target->bondCount)
+        if(vf2state->query->hydrogenAtomCount != target->hydrogenAtomCount)
+            return false;
+
+        if(vf2state->query->heavyBondCount != target->heavyBondCount)
+            return false;
+
+        if(vf2state->query->hydrogenBondCount != target->hydrogenBondCount)
             return false;
     }
 

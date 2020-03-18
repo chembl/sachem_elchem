@@ -160,7 +160,9 @@ public class SubstructureQuery extends Query
             this.parentQuery = SubstructureQuery.this;
             this.tautomer = tautomer;
 
-            this.moleculeData = (new BinaryMoleculeBuilder(tautomer)).asBytes(searchMode == SearchMode.EXACT);
+            this.moleculeData = (new BinaryMoleculeBuilder(tautomer, chargeMode == ChargeMode.IGNORE,
+                    isotopeMode == IsotopeMode.IGNORE, stereoMode == StereoMode.IGNORE))
+                            .asBytes(searchMode == SearchMode.EXACT);
             this.restH = new boolean[tautomer.getAtomCount()];
 
             for(int i = 0; i < tautomer.getAtomCount(); i++)

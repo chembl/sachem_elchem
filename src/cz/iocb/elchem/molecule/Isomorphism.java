@@ -206,7 +206,9 @@ public class Isomorphism
             byte queryNumber = query.getAtomNumber(queryAtom);
             byte targetNumber = target.getAtomNumber(targetAtom);
 
-            if(queryNumber == AtomType.UNKNOWN || targetNumber == AtomType.UNKNOWN)
+            if(searchMode == SearchMode.EXACT)
+                return queryNumber == targetNumber;
+            else if(queryNumber == AtomType.UNKNOWN || targetNumber == AtomType.UNKNOWN)
                 return false;
             else if(queryNumber == targetNumber || queryNumber == AtomType.R)
                 return true;
@@ -234,8 +236,9 @@ public class Isomorphism
             byte queryBondType = query.getBondType(queryBond);
             byte targetbondType = target.getBondType(targetbond);
 
-
-            if(queryBondType == targetbondType || queryBondType == BondType.ANY)
+            if(searchMode == SearchMode.EXACT)
+                return queryBondType == targetbondType;
+            else if(queryBondType == targetbondType || queryBondType == BondType.ANY)
                 return true;
             else if(queryBondType == BondType.SINGLE_OR_DOUBLE)
                 return targetbondType == BondType.SINGLE || targetbondType == BondType.DOUBLE;
@@ -274,18 +277,15 @@ public class Isomorphism
             }
 
 
-            if(!query.hasPseudoAtom() && !target.hasPseudoAtom())
+            if(searchMode == SearchMode.EXACT)
             {
-                if(searchMode != SearchMode.EXACT)
-                {
-                    if(query.getAtomHydrogenCount(queryIdx) > target.getAtomHydrogenCount(targetIdx))
-                        return false;
-                }
-                else
-                {
-                    if(query.getAtomHydrogenCount(queryIdx) != target.getAtomHydrogenCount(targetIdx))
-                        return false;
-                }
+                if(query.getAtomHydrogenCount(queryIdx) != target.getAtomHydrogenCount(targetIdx))
+                    return false;
+            }
+            else if(!query.hasPseudoAtom() && !target.hasPseudoAtom())
+            {
+                if(query.getAtomHydrogenCount(queryIdx) > target.getAtomHydrogenCount(targetIdx))
+                    return false;
             }
 
 
@@ -377,9 +377,16 @@ public class Isomorphism
                 int targetAtomIdx = queryCore[queryAtomIdx];
                 byte targetStereo = target.getAtomStereo(targetAtomIdx);
 
-                if(queryStereo != Molecule.TetrahedralStereo.NONE
-                        && queryStereo != Molecule.TetrahedralStereo.UNDEFINED)
+                if(queryStereo == Molecule.TetrahedralStereo.UNDEFINED)
                 {
+                    if(searchMode == SearchMode.EXACT && targetStereo != Molecule.TetrahedralStereo.UNDEFINED)
+                        return false;
+                }
+                else if(queryStereo != Molecule.TetrahedralStereo.NONE)
+                {
+                    if(searchMode == SearchMode.EXACT && targetStereo == Molecule.TetrahedralStereo.UNDEFINED)
+                        return false;
+
                     if(targetStereo == Molecule.TetrahedralStereo.NONE
                             || targetStereo == Molecule.TetrahedralStereo.UNDEFINED)
                         continue;
@@ -514,8 +521,16 @@ public class Isomorphism
                 int targetBondIdx = target.getBond(targetBondAtom0, targetBondAtom1);
                 byte targetStereo = target.getBondStereo(targetBondIdx);
 
-                if(queryStereo != Molecule.BondStereo.NONE && queryStereo != Molecule.BondStereo.UNDEFINED)
+                if(queryStereo == Molecule.BondStereo.UNDEFINED)
                 {
+                    if(searchMode == SearchMode.EXACT && targetStereo != Molecule.BondStereo.UNDEFINED)
+                        return false;
+                }
+                else if(queryStereo != Molecule.BondStereo.NONE)
+                {
+                    if(searchMode == SearchMode.EXACT && targetStereo == Molecule.BondStereo.UNDEFINED)
+                        return false;
+
                     if(targetStereo == Molecule.BondStereo.NONE || targetStereo == Molecule.BondStereo.UNDEFINED)
                         continue;
 
@@ -663,7 +678,7 @@ public class Isomorphism
             /*
             The goal has been reached, so the query has been mapped to target,
             therfore query is a substructure of the target.
-
+            
             However, if this was an R-group query, the result could still be
             rejected.If the RestH property is true for some atom with an R-group
             linked, then the R-group may only be substituted with a member

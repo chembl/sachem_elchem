@@ -133,7 +133,7 @@ public class SimilarStructureQuery extends Query
             this.parentQuery = SimilarStructureQuery.this;
             this.tautomer = tautomer;
 
-            byte[] moleculeData = (new BinaryMoleculeBuilder(tautomer)).asBytes(false);
+            byte[] moleculeData = (new BinaryMoleculeBuilder(tautomer, true, true, true)).asBytes(false);
 
             BinaryMolecule molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
 

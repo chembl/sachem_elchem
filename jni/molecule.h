@@ -557,7 +557,7 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
 }
 
 
-static inline bool molecule_is_extended_search_needed(const uint8_t *restrict data, bool withCharges, bool withIsotopes)
+static inline bool molecule_is_extended_search_needed(const uint8_t *restrict data, bool withRGroups, bool withCharges, bool withIsotopes)
 {
     int xAtomCount = *data << 8 | *(data + 1);
     data += 2;
@@ -577,7 +577,7 @@ static inline bool molecule_is_extended_search_needed(const uint8_t *restrict da
     int heavyAtomCount = xAtomCount + cAtomCount;
 
     for(int i = 0; i < xAtomCount; i++)
-        if(((int8_t) data[i]) < 0)
+        if(withRGroups && ((int8_t) data[i]) < 0)
             return true;
 
     data += xAtomCount;
@@ -662,6 +662,56 @@ static inline bool molecule_has_pseudo_atom(const uint8_t *restrict data)
     for(int i = 0; i < xAtomCount; i++)
         if(((int8_t) data[i]) < 0)
             return true;
+
+    return false;
+}
+
+
+static inline bool molecule_has_charged_hydrogen(const uint8_t *restrict data)
+{
+    int xAtomCount = data[0] << 8 | data[1];
+    int cAtomCount = data[2] << 8 | data[3];
+    int hAtomCount = data[4] << 8 | data[5];
+    int xBondCount = data[6] << 8 | data[7];
+    int specialCount = data[8] << 8 | data[9];
+
+    int heavyAtomCount = xAtomCount + cAtomCount;
+    int base = 10 + xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
+
+    for(int i = 0; i < specialCount; i++)
+    {
+        int offset = base + i * SPECIAL_BLOCK_SIZE;
+        int value = data[offset + 0] * 256 | data[offset + 1];
+        int idx = value & 0xFFF;
+
+        if(data[offset] >> 4 == RECORD_CHARGE && idx >= heavyAtomCount)
+            return true;
+    }
+
+    return false;
+}
+
+
+static inline bool molecule_has_hydrogen_isotope(const uint8_t *restrict data)
+{
+    int xAtomCount = data[0] << 8 | data[1];
+    int cAtomCount = data[2] << 8 | data[3];
+    int hAtomCount = data[4] << 8 | data[5];
+    int xBondCount = data[6] << 8 | data[7];
+    int specialCount = data[8] << 8 | data[9];
+
+    int heavyAtomCount = xAtomCount + cAtomCount;
+    int base = 10 + xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
+
+    for(int i = 0; i < specialCount; i++)
+    {
+        int offset = base + i * SPECIAL_BLOCK_SIZE;
+        int value = data[offset + 0] * 256 | data[offset + 1];
+        int idx = value & 0xFFF;
+
+        if(data[offset] >> 4 == RECORD_ISOTOPE && idx >= heavyAtomCount)
+            return true;
+    }
 
     return false;
 }

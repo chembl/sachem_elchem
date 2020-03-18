@@ -55,9 +55,42 @@ public class BinaryMoleculeBuilder
     @SuppressWarnings("rawtypes") private IStereoElement[] doubleBondStereo;
 
 
-    public BinaryMoleculeBuilder(IAtomContainer molecule) throws CDKException
+    public BinaryMoleculeBuilder(IAtomContainer molecule, boolean ignoreCharges, boolean ignoreIsotopes,
+            boolean ignoreStereo) throws CDKException
     {
+        try
+        {
+            boolean clone = false;
+
+            for(IAtom atom : molecule.atoms())
+                if(ignoreCharges && atom.getFormalCharge() != 0 || ignoreIsotopes && atom.getMassNumber() != null)
+                    clone = true;
+
+            if(clone)
+            {
+                molecule = molecule.clone();
+
+                if(ignoreCharges)
+                    for(IAtom atom : molecule.atoms())
+                        atom.setFormalCharge(0);
+
+                if(ignoreIsotopes)
+                    for(IAtom atom : molecule.atoms())
+                        atom.setMassNumber(null);
+            }
+        }
+        catch(CloneNotSupportedException e)
+        {
+            throw new CDKException("IAtomContainer clone is not supported");
+        }
+
+
         this.molecule = molecule;
+
+
+        if(ignoreStereo)
+            return;
+
 
         try
         {
@@ -463,6 +496,9 @@ public class BinaryMoleculeBuilder
 
     private boolean isTetrahedralChirality(int index)
     {
+        if(tetrahedralChirality == null)
+            return false;
+
         IAtom focus = molecule.getAtom(index);
 
         if(focus.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
@@ -486,6 +522,9 @@ public class BinaryMoleculeBuilder
 
     private boolean isExtendedTetrahedral(int index)
     {
+        if(tetrahedralChirality == null)
+            return false;
+
         IAtom focus = molecule.getAtom(index);
 
         if(focus.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
@@ -591,6 +630,9 @@ public class BinaryMoleculeBuilder
 
     private boolean isDoubleBondStereochemistry(int index)
     {
+        if(doubleBondStereo == null)
+            return false;
+
         IBond bond = molecule.getBond(index);
 
         if(bond.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
@@ -622,6 +664,9 @@ public class BinaryMoleculeBuilder
 
     private boolean isExtendedCisTrans(int index)
     {
+        if(doubleBondStereo == null)
+            return false;
+
         IBond bond = molecule.getBond(index);
 
         if(bond.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
