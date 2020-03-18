@@ -536,17 +536,17 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     {
         for(int h = 0; h < template->atomHydrogens[a]; h++)
         {
-            molecule->bondLists[a * BOND_LIST_BASE_SIZE + molecule->bondListSizes[a]++] = h;
-            molecule->bondLists[h * BOND_LIST_BASE_SIZE + molecule->bondListSizes[h]++] = a;
+            molecule->bondLists[a * BOND_LIST_BASE_SIZE + molecule->bondListSizes[a]++] = hydrogen;
+            molecule->bondLists[hydrogen * BOND_LIST_BASE_SIZE + molecule->bondListSizes[hydrogen]++] = a;
 
-            if(unlikely(molecule->bondListSizes[a] == BOND_LIST_BASE_SIZE || molecule->bondListSizes[h] == BOND_LIST_BASE_SIZE))
+            if(unlikely(molecule->bondListSizes[hydrogen] == BOND_LIST_BASE_SIZE || molecule->bondListSizes[hydrogen] == BOND_LIST_BASE_SIZE))
                 return NULL;
 
-            molecule->bondMatrix[a * molecule->atomCount + h] = boundIdx;
-            molecule->bondMatrix[h * molecule->atomCount + a] = boundIdx;
+            molecule->bondMatrix[a * molecule->atomCount + hydrogen] = boundIdx;
+            molecule->bondMatrix[hydrogen * molecule->atomCount + a] = boundIdx;
 
             molecule->contains[boundIdx][0] = a;
-            molecule->contains[boundIdx][1] = h;
+            molecule->contains[boundIdx][1] = hydrogen;
 
             boundIdx++;
             hydrogen++;
