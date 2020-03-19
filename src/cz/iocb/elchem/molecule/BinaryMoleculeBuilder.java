@@ -638,7 +638,7 @@ public class BinaryMoleculeBuilder
         if(bond.getProperty(STEREO_PROPERTY) == IGNORE_STEREO)
             return false;
 
-        if(bond.isAromatic())
+        if(bond.getOrder() != Order.DOUBLE || bond.isAromatic())
             return false;
 
         if(doubleBondStereo[index] instanceof DoubleBondStereochemistry)
