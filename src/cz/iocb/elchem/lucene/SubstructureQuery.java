@@ -62,14 +62,14 @@ public class SubstructureQuery extends Query
     private final Query subquery;
 
 
-    public SubstructureQuery(String field, String query, QueryFormat queryFormat, SearchMode graphMode,
+    public SubstructureQuery(String field, String query, QueryFormat queryFormat, SearchMode searchMode,
             ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode,
             TautomerMode tautomerMode, int iterationLimit) throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
         this.queryFormat = queryFormat;
-        this.searchMode = graphMode;
+        this.searchMode = searchMode;
         this.chargeMode = chargeMode;
         this.isotopeMode = isotopeMode;
         this.stereoMode = stereoMode;

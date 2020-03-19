@@ -19,10 +19,10 @@ public class NativeIsomorphism
     private final ByteBuffer implementation;
 
 
-    public NativeIsomorphism(byte[] query, boolean[] restH, SearchMode graphMode, ChargeMode chargeMode,
+    public NativeIsomorphism(byte[] query, boolean[] restH, SearchMode searchMode, ChargeMode chargeMode,
             IsotopeMode isotopeMode, StereoMode stereoMode)
     {
-        implementation = create(query, restH, graphMode.ordinal(), chargeMode.ordinal(), isotopeMode.ordinal(),
+        implementation = create(query, restH, searchMode.ordinal(), chargeMode.ordinal(), isotopeMode.ordinal(),
                 stereoMode.ordinal());
     }
 
@@ -37,7 +37,7 @@ public class NativeIsomorphism
             throws IterationLimitExceededException;
 
 
-    private static native ByteBuffer create(byte[] query, boolean[] restH, int graphMode, int chargeMode,
+    private static native ByteBuffer create(byte[] query, boolean[] restH, int searchMode, int chargeMode,
             int isotopeMode, int stereoMode);
 
     private static native void init();

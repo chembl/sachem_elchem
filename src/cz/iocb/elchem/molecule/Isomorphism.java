@@ -57,12 +57,12 @@ public class Isomorphism
     }
 
 
-    public Isomorphism(Molecule query, SearchMode graphMode, ChargeMode chargeMode, IsotopeMode isotopeMode,
+    public Isomorphism(Molecule query, SearchMode searchMode, ChargeMode chargeMode, IsotopeMode isotopeMode,
             StereoMode stereoMode)
     {
         int queryAtomCount = query.getAtomCount();
 
-        this.searchMode = graphMode;
+        this.searchMode = searchMode;
         this.chargeMode = chargeMode;
         this.isotopeMode = isotopeMode;
         this.stereoMode = stereoMode;
@@ -678,7 +678,7 @@ public class Isomorphism
             /*
             The goal has been reached, so the query has been mapped to target,
             therfore query is a substructure of the target.
-            
+
             However, if this was an R-group query, the result could still be
             rejected.If the RestH property is true for some atom with an R-group
             linked, then the R-group may only be substituted with a member
