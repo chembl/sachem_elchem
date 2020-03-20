@@ -1,7 +1,6 @@
 package cz.iocb.elchem.molecule;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 
 
@@ -63,9 +62,6 @@ public final class BinaryMolecule extends Molecule
         {
             atomCount += hAtomCount;
             bondCount += hAtomCount;
-
-            if(restH != null)
-                restH = Arrays.copyOf(restH, atomCount);
         }
 
         byte[] atomNumbers = new byte[atomCount];

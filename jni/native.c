@@ -18,14 +18,21 @@ JNIEXPORT jobject JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_create(
         jbyteArray queryArray, jbooleanArray restHArray, jint searchMode, jint chargeMode, jint isotopeMode, jint stereoMode)
 {
     uint8_t *query = (uint8_t *) (*env)->GetByteArrayElements(env, queryArray, NULL);
-    uint8_t *restH = (uint8_t *) (*env)->GetBooleanArrayElements(env, restHArray, NULL);
 
-    if(unlikely(query == NULL || restH == NULL))
-    {
-        if(query != NULL)
-            (*env)->ReleaseByteArrayElements(env, queryArray, (jbyte *) query, JNI_ABORT);
-
+    if(unlikely(query == NULL))
         return NULL;
+
+    uint8_t *restH = NULL;
+
+    if(restHArray != NULL)
+    {
+        restH = (uint8_t *) (*env)->GetBooleanArrayElements(env, restHArray, NULL);
+
+        if(unlikely(restH == NULL))
+        {
+            (*env)->ReleaseByteArrayElements(env, queryArray, (jbyte *) query, JNI_ABORT);
+            return NULL;
+        }
     }
 
     bool extended = molecule_is_extended_search_needed(query, searchMode != SEARCH_EXACT, chargeMode != CHARGE_IGNORE, isotopeMode != ISOTOPE_IGNORE);
@@ -43,7 +50,9 @@ JNIEXPORT jobject JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_create(
     }
 
     (*env)->ReleaseByteArrayElements(env, queryArray, (jbyte *) query, JNI_ABORT);
-    (*env)->ReleaseBooleanArrayElements(env, restHArray, (jboolean *) restH, JNI_ABORT);
+
+    if(restHArray != NULL)
+        (*env)->ReleaseBooleanArrayElements(env, restHArray, (jboolean *) restH, JNI_ABORT);
 
     return buffer;
 }

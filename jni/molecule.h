@@ -206,7 +206,6 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     {
         restH = (uint8_t *) alloc_memory(&memory, atomCount * sizeof(uint8_t));
         memcpy(restH, restData, atomCount * sizeof(uint8_t));
-        bzero(restH + atomCount * sizeof(uint8_t), (atomCount - heavyAtomCount) * sizeof(uint8_t));
     }
 
 
@@ -447,7 +446,7 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
 
     if(template->restH != NULL)
     {
-        molecule->restH = (uint8_t *) alloc_memory(&memory, molecule->atomCount * sizeof(uint8_t));
+        molecule->restH = (uint8_t *) alloc_memory(&memory, molecule->atomCount);
         memcpy(molecule->restH, template->restH, template->atomCount);
         memset(molecule->restH + template->atomCount, 0, template->hydrogenAtomCount);
     }

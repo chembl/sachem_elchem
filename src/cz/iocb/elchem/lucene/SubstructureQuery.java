@@ -29,6 +29,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.Weight;
 import org.openscience.cdk.CDKConstants;
 import org.openscience.cdk.exception.CDKException;
+import org.openscience.cdk.interfaces.IAtom;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import cz.iocb.elchem.fingerprint.IOCBFingerprint;
 import cz.iocb.elchem.molecule.AromaticityMode;
@@ -163,10 +164,31 @@ public class SubstructureQuery extends Query
             this.moleculeData = (new BinaryMoleculeBuilder(tautomer, chargeMode == ChargeMode.IGNORE,
                     isotopeMode == IsotopeMode.IGNORE, stereoMode == StereoMode.IGNORE))
                             .asBytes(searchMode == SearchMode.EXACT);
-            this.restH = new boolean[tautomer.getAtomCount()];
 
-            for(int i = 0; i < tautomer.getAtomCount(); i++)
-                restH[i] = Boolean.TRUE.equals(tautomer.getAtom(i).getProperty(CDKConstants.REST_H));
+            boolean hasRestH = false;
+
+            for(IAtom a : tautomer.atoms())
+                if(Boolean.TRUE.equals(a.getProperty(CDKConstants.REST_H)))
+                    hasRestH = true;
+
+            if(hasRestH)
+            {
+                int restHSize = tautomer.getAtomCount();
+
+                if(searchMode == SearchMode.EXACT)
+                    for(IAtom a : tautomer.atoms())
+                        if(a.getImplicitHydrogenCount() != null)
+                            restHSize += a.getImplicitHydrogenCount();
+
+                this.restH = new boolean[restHSize];
+
+                for(int i = 0; i < tautomer.getAtomCount(); i++)
+                    this.restH[i] = Boolean.TRUE.equals(tautomer.getAtom(i).getProperty(CDKConstants.REST_H));
+            }
+            else
+            {
+                this.restH = null;
+            }
 
             this.molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
             this.info = new HashMap<Integer, Set<Integer>>();
