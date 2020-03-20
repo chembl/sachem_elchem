@@ -23,7 +23,7 @@ static inline void *alloc_memory_zero(void **memory, size_t size)
 {
     size = align_size(size);
     void *address = *memory;
-    bzero(address, size);
+    memset(address, 0, size);
     *memory += size;
     return address;
 }
