@@ -27,13 +27,13 @@ public class NativeIsomorphism
     }
 
 
-    public float match(byte[] query, int limit) throws IterationLimitExceededException
+    public float match(byte[] query, long limit) throws IterationLimitExceededException
     {
         return match(implementation, query, limit);
     }
 
 
-    private static native float match(ByteBuffer implementation, byte[] query, int limit)
+    private static native float match(ByteBuffer implementation, byte[] query, long limit)
             throws IterationLimitExceededException;
 
 

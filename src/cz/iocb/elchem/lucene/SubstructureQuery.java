@@ -58,14 +58,14 @@ public class SubstructureQuery extends Query
     private final StereoMode stereoMode;
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
-    private final int iterationLimit;
+    private final long iterationLimit;
 
     private final Query subquery;
 
 
     public SubstructureQuery(String field, String query, QueryFormat queryFormat, SearchMode searchMode,
             ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode,
-            TautomerMode tautomerMode, int iterationLimit) throws CDKException, IOException, TimeoutException
+            TautomerMode tautomerMode, long iterationLimit) throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;

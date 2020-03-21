@@ -84,7 +84,7 @@ VF2Undo;
 
 typedef struct
 {
-    uint counter;
+    uint64_t counter;
 
     SearchMode searchMode;
     ChargeMode chargeMode;
@@ -919,9 +919,9 @@ static inline bool vf2state_match_core(VF2State *restrict vf2state)
 }
 
 
-static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *restrict target, void *memory, int limit)
+static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *restrict target, void *memory, int64_t limit)
 {
-    vf2state->counter = limit > 0 ? limit : (uint) -1;
+    vf2state->counter = limit > 0 ? limit : (uint64_t) -1;
 
     if(likely(vf2state->searchMode != SEARCH_EXACT))
     {

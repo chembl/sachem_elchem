@@ -50,7 +50,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     private StereoMode stereoMode = StereoMode.IGNORE;
     private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
     private TautomerMode tautomerMode = TautomerMode.IGNORE;
-    private int matchingLimit = 0;
+    private long matchingLimit = 0;
 
 
     public SubstructureQueryBuilder()
@@ -71,7 +71,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         stereoMode = in.readEnum(StereoMode.class);
         aromaticityMode = in.readEnum(AromaticityMode.class);
         tautomerMode = in.readEnum(TautomerMode.class);
-        matchingLimit = in.readInt();
+        matchingLimit = in.readLong();
     }
 
 
@@ -87,7 +87,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         out.writeEnum(stereoMode);
         out.writeEnum(aromaticityMode);
         out.writeEnum(tautomerMode);
-        out.writeInt(matchingLimit);
+        out.writeLong(matchingLimit);
     }
 
 
@@ -102,7 +102,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         StereoMode stereoModePattern = StereoMode.IGNORE;
         AromaticityMode aromaticityModePattern = AromaticityMode.AUTO;
         TautomerMode tautomerModePattern = TautomerMode.IGNORE;
-        int matchingLimitPattern = 0;
+        long matchingLimitPattern = 0;
 
         String queryName = null;
         float boost = AbstractQueryBuilder.DEFAULT_BOOST;
@@ -184,7 +184,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
                 }
                 else if(MATCHING_LIMIT_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
-                    matchingLimitPattern = parser.intValue();
+                    matchingLimitPattern = parser.longValue();
 
                     if(matchingLimitPattern < 0)
                         throw new ParsingException(parser.getTokenLocation(), "wrong matching limit value [{}]",

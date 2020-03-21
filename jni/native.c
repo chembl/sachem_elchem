@@ -59,7 +59,7 @@ JNIEXPORT jobject JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_create(
 
 
 JNIEXPORT jfloat JNICALL Java_cz_iocb_elchem_molecule_NativeIsomorphism_match(JNIEnv *env, jclass clazz, jobject buffer,
-        jbyteArray targetArray, jint limit)
+        jbyteArray targetArray, jlong limit)
 {
     VF2State *isomorphism = (VF2State *) (*env)->GetDirectBufferAddress(env, buffer);
     uint8_t *target = (uint8_t *) (*env)->GetByteArrayElements(env, targetArray, NULL);
