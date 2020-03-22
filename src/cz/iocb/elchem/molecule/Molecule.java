@@ -94,6 +94,8 @@ public abstract class Molecule
 
     public abstract byte getAtomMass(int atom);
 
+    public abstract byte getAtomRadicalType(int atom);
+
     public abstract byte getAtomStereo(int atom);
 
     public abstract boolean getAtomRestHydrogenFlag(int atom);

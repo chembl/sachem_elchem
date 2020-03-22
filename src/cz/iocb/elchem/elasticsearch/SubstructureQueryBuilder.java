@@ -19,6 +19,7 @@ import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.ChargeMode;
 import cz.iocb.elchem.molecule.IsotopeMode;
 import cz.iocb.elchem.molecule.QueryFormat;
+import cz.iocb.elchem.molecule.RadicalMode;
 import cz.iocb.elchem.molecule.SearchMode;
 import cz.iocb.elchem.molecule.StereoMode;
 import cz.iocb.elchem.molecule.TautomerMode;
@@ -35,6 +36,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     public static final ParseField SEARCH_MODE_FIELD = new ParseField("search_mode");
     public static final ParseField CHARGE_MODE_FIELD = new ParseField("charge_mode");
     public static final ParseField ISOTOPE_MODE_FIELD = new ParseField("isotope_mode");
+    public static final ParseField RADICAL_MODE_FIELD = new ParseField("radical_mode");
     public static final ParseField STEREO_MODE_FIELD = new ParseField("stereo_mode");
     public static final ParseField AROMATICITY_MODE_FIELD = new ParseField("aromaticity_mode");
     public static final ParseField TAUTOMER_MODE_FIELD = new ParseField("tautomer_mode");
@@ -47,6 +49,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
     private SearchMode searchMode = SearchMode.SUBSTRUCTURE;
     private ChargeMode chargeMode = ChargeMode.DEFAULT_AS_ANY;
     private IsotopeMode isotopeMode = IsotopeMode.IGNORE;
+    private RadicalMode radicalMode = RadicalMode.IGNORE;
     private StereoMode stereoMode = StereoMode.IGNORE;
     private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
     private TautomerMode tautomerMode = TautomerMode.IGNORE;
@@ -68,6 +71,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         searchMode = in.readEnum(SearchMode.class);
         chargeMode = in.readEnum(ChargeMode.class);
         isotopeMode = in.readEnum(IsotopeMode.class);
+        radicalMode = in.readEnum(RadicalMode.class);
         stereoMode = in.readEnum(StereoMode.class);
         aromaticityMode = in.readEnum(AromaticityMode.class);
         tautomerMode = in.readEnum(TautomerMode.class);
@@ -84,6 +88,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         out.writeEnum(searchMode);
         out.writeEnum(chargeMode);
         out.writeEnum(isotopeMode);
+        out.writeEnum(radicalMode);
         out.writeEnum(stereoMode);
         out.writeEnum(aromaticityMode);
         out.writeEnum(tautomerMode);
@@ -99,6 +104,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         SearchMode searchModePattern = SearchMode.SUBSTRUCTURE;
         ChargeMode chargeModePattern = ChargeMode.DEFAULT_AS_ANY;
         IsotopeMode isotopeModePattern = IsotopeMode.IGNORE;
+        RadicalMode radicalModePattern = RadicalMode.IGNORE;
         StereoMode stereoModePattern = StereoMode.IGNORE;
         AromaticityMode aromaticityModePattern = AromaticityMode.AUTO;
         TautomerMode tautomerModePattern = TautomerMode.IGNORE;
@@ -157,6 +163,14 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
 
                     if(isotopeModePattern == null)
                         throw new ParsingException(parser.getTokenLocation(), "unknown isotope mode [{}]", value);
+                }
+                else if(RADICAL_MODE_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
+                {
+                    String value = parser.text();
+                    radicalModePattern = RadicalMode.valueOf(value.toUpperCase());
+
+                    if(radicalModePattern == null)
+                        throw new ParsingException(parser.getTokenLocation(), "unknown radical mode [{}]", value);
                 }
                 else if(STEREO_MODE_FIELD.match(currentFieldName, parser.getDeprecationHandler()))
                 {
@@ -231,6 +245,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         builder.searchMode = searchModePattern;
         builder.chargeMode = chargeModePattern;
         builder.isotopeMode = isotopeModePattern;
+        builder.radicalMode = radicalModePattern;
         builder.stereoMode = stereoModePattern;
         builder.aromaticityMode = aromaticityModePattern;
         builder.tautomerMode = tautomerModePattern;
@@ -251,6 +266,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         builder.field(SEARCH_MODE_FIELD.getPreferredName(), searchMode.name().toLowerCase());
         builder.field(CHARGE_MODE_FIELD.getPreferredName(), chargeMode.name().toLowerCase());
         builder.field(ISOTOPE_MODE_FIELD.getPreferredName(), isotopeMode.name().toLowerCase());
+        builder.field(RADICAL_MODE_FIELD.getPreferredName(), radicalMode.name().toLowerCase());
         builder.field(STEREO_MODE_FIELD.getPreferredName(), stereoMode.name().toLowerCase());
         builder.field(AROMATICITY_MODE_FIELD.getPreferredName(), aromaticityMode.name().toLowerCase());
         builder.field(TAUTOMER_MODE_FIELD.getPreferredName(), tautomerMode.name().toLowerCase());
@@ -266,7 +282,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         try
         {
             return new SubstructureQuery(fieldName, molecule, queryFormat, searchMode, chargeMode, isotopeMode,
-                    stereoMode, aromaticityMode, tautomerMode, matchingLimit);
+                    radicalMode, stereoMode, aromaticityMode, tautomerMode, matchingLimit);
         }
         catch(CDKException | TimeoutException e)
         {
@@ -288,7 +304,7 @@ public class SubstructureQueryBuilder extends AbstractQueryBuilder<SubstructureQ
         return Objects.equals(fieldName, other.fieldName) && Objects.equals(molecule, other.molecule)
                 && Objects.equals(queryFormat, other.queryFormat) && Objects.equals(searchMode, other.searchMode)
                 && Objects.equals(chargeMode, other.chargeMode) && Objects.equals(isotopeMode, other.isotopeMode)
-                && Objects.equals(stereoMode, other.stereoMode)
+                && Objects.equals(radicalMode, other.radicalMode) && Objects.equals(stereoMode, other.stereoMode)
                 && Objects.equals(aromaticityMode, other.aromaticityMode)
                 && Objects.equals(tautomerMode, other.tautomerMode) && matchingLimit == other.matchingLimit;
     }

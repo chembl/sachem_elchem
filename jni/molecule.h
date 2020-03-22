@@ -45,7 +45,8 @@ enum SpecialRecordType
     RECORD_CHARGE = 0,
     RECORD_ISOTOPE = 1,
     RECORD_TETRAHEDRAL_STEREO = 2,
-    RECORD_BOND_STEREO = 3
+    RECORD_BOND_STEREO = 3,
+    RECORD_RADICAL = 4
 };
 
 
@@ -90,6 +91,7 @@ typedef struct
     uint8_t *restrict atomHydrogens;
     int8_t *restrict atomCharges;
     int8_t *restrict atomMasses;
+    int8_t *restrict atomRadicalTypes;
     uint8_t *restrict atomStereo;
     uint8_t *restrict bondTypes;
     uint8_t *restrict bondStereo;
@@ -105,7 +107,8 @@ Molecule;
 
 
 static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8_t *restrict restData, bool extended,
-        bool withCharges, bool withIsotopes, bool withStereo, bool ignoreChargedHydrogens, bool ignoreHydrogenIsotopes)
+        bool withCharges, bool withIsotopes, bool withRadicals, bool withStereo,
+        bool ignoreChargedHydrogens, bool ignoreHydrogenIsotopes, bool ignoreHydrogenRadicals)
 {
     int atomCount = (*(data + 0) << 8 | *(data + 1)) + (*(data + 2) << 8 | *(data + 3));
     int hAtomCount = *(data + 4) << 8 | *(data + 5);
@@ -122,7 +125,7 @@ static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8
     if(restData != NULL)
         memsize += align_size(atomCount * sizeof(uint8_t));
 
-    memsize += (2 + withCharges + withIsotopes + withStereo) * align_size(atomCount);
+    memsize += (2 + withCharges + withIsotopes + withRadicals + withStereo) * align_size(atomCount);
     memsize += (1 + withStereo) * align_size(bondCount);
 
     memsize += align_size(BOND_LIST_BASE_SIZE * atomCount * sizeof(AtomIdx));
@@ -130,7 +133,7 @@ static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8
     memsize += align_size(bondCount * sizeof(AtomIdx[2]));
     memsize += align_size(atomCount * atomCount * sizeof(BondIdx));
 
-    if(!extended && (ignoreChargedHydrogens || ignoreHydrogenIsotopes))
+    if(!extended && (ignoreChargedHydrogens || ignoreHydrogenIsotopes || ignoreHydrogenRadicals))
         memsize += align_size(sizeof(bool) * hAtomCount);
 
     return memsize;
@@ -143,6 +146,7 @@ static inline size_t molecule_extended_mem_size(const Molecule *restrict molecul
     int bondCount = molecule->heavyBondCount + molecule->hydrogenBondCount;
     bool withCharges = molecule->atomCharges;
     bool withIsotopes = molecule->atomMasses;
+    bool withRadicals = molecule->atomRadicalTypes;
     bool withStereo = molecule->atomStereo;
 
     size_t memsize = align_size(sizeof(Molecule));
@@ -150,7 +154,7 @@ static inline size_t molecule_extended_mem_size(const Molecule *restrict molecul
     if(molecule->restH != NULL)
         memsize += align_size(atomCount * sizeof(uint8_t));
 
-    memsize += (2 + withCharges + withIsotopes + withStereo) * align_size(atomCount);
+    memsize += (2 + withCharges + withIsotopes + withRadicals + withStereo) * align_size(atomCount);
     memsize += (1 + withStereo) * align_size(bondCount);
 
     memsize += align_size(BOND_LIST_BASE_SIZE * atomCount * sizeof(AtomIdx));
@@ -163,10 +167,12 @@ static inline size_t molecule_extended_mem_size(const Molecule *restrict molecul
 
 
 static inline Molecule *molecule_create(void *memory, const uint8_t *restrict data, uint8_t *restrict restData,
-        bool extended, bool withCharges, bool withIsotopes, bool withStereo, bool ignoreChargedHydrogens, bool ignoreHydrogenIsotopes)
+        bool extended, bool withCharges, bool withIsotopes, bool withRadicals, bool withStereo,
+        bool ignoreChargedHydrogens, bool ignoreHydrogenIsotopes, bool ignoreHydrogenRadicals)
 {
     ignoreChargedHydrogens &= !extended;
     ignoreHydrogenIsotopes &= !extended;
+    ignoreHydrogenRadicals &= !extended;
 
 
     int xAtomCount = *data << 8 | *(data + 1);
@@ -216,6 +222,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     uint8_t *restrict bondTypes = (uint8_t *) alloc_memory(&memory, bondCount);
     int8_t *restrict atomCharges = withCharges ? (int8_t *) alloc_memory_zero(&memory, atomCount) : NULL;
     int8_t *restrict atomMasses = withIsotopes ? (int8_t *) alloc_memory_zero(&memory, atomCount) : NULL;
+    int8_t *restrict atomRadicalTypes = withRadicals ? (int8_t *) alloc_memory_zero(&memory, atomCount) : NULL;
     uint8_t *restrict atomStereo = withStereo ? (uint8_t *) alloc_memory_zero(&memory, atomCount) : NULL;
     uint8_t *restrict bondStereo = withStereo ? (uint8_t *) alloc_memory_zero(&memory, bondCount) : NULL;
 
@@ -294,7 +301,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
     bool *restrict ignoredHydrogen = NULL;;
 
-    if(ignoreChargedHydrogens || ignoreHydrogenIsotopes)
+    if(ignoreChargedHydrogens || ignoreHydrogenIsotopes || ignoreHydrogenRadicals)
     {
         const uint8_t *sdata = data + hAtomCount * HBOND_BLOCK_SIZE;
         ignoredHydrogen = (bool *) alloc_memory_zero(&memory, sizeof(bool) * hAtomCount);
@@ -314,6 +321,11 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
                 case RECORD_ISOTOPE:
                     if(ignoreHydrogenIsotopes && idx >= heavyAtomCount)
+                        ignoredHydrogen[idx - heavyAtomCount] = true;
+                    break;
+
+                case RECORD_RADICAL:
+                    if(ignoreHydrogenRadicals && idx >= heavyAtomCount)
                         ignoredHydrogen[idx - heavyAtomCount] = true;
                     break;
             }
@@ -339,7 +351,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
 
         AtomIdx idx = value & 0xFFF;
 
-        if(idx < atomCount && ((!ignoreChargedHydrogens && !ignoreHydrogenIsotopes) || ignoredHydrogen[i] == false))
+        if(idx < atomCount && (!(ignoreChargedHydrogens || ignoreHydrogenIsotopes || ignoreHydrogenRadicals) || ignoredHydrogen[i] == false))
             atomHydrogens[idx]++;
 
 
@@ -391,6 +403,11 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
                     atomMasses[idx] = (int8_t) data[offset + 2];
                 break;
 
+            case RECORD_RADICAL:
+                if(withRadicals && idx < atomCount)
+                    atomRadicalTypes[idx] = (int8_t) data[offset + 2];
+                break;
+
             case RECORD_TETRAHEDRAL_STEREO:
                 if(withStereo && idx < atomCount)
                     atomStereo[idx] = data[offset + 2];
@@ -418,6 +435,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     molecule->atomHydrogens = atomHydrogens;
     molecule->atomCharges = atomCharges;
     molecule->atomMasses = atomMasses;
+    molecule->atomRadicalTypes = atomRadicalTypes;
     molecule->atomStereo = atomStereo;
     molecule->bondTypes = bondTypes;
     molecule->bondStereo = bondStereo;
@@ -489,6 +507,17 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
         molecule->atomMasses = NULL;
     }
 
+    if(template->atomRadicalTypes)
+    {
+        molecule->atomRadicalTypes = (int8_t *) alloc_memory(&memory, molecule->atomCount);
+        memcpy(molecule->atomRadicalTypes, template->atomRadicalTypes, template->atomCount);
+        memset(molecule->atomRadicalTypes + template->atomCount, 0, template->hydrogenAtomCount);
+    }
+    else
+    {
+        molecule->atomRadicalTypes = NULL;
+    }
+
     if(template->atomStereo)
     {
         molecule->atomStereo = (uint8_t *) alloc_memory(&memory, molecule->atomCount);
@@ -556,7 +585,8 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
 }
 
 
-static inline bool molecule_is_extended_search_needed(const uint8_t *restrict data, bool withRGroups, bool withCharges, bool withIsotopes)
+static inline bool molecule_is_extended_search_needed(const uint8_t *restrict data, bool withRGroups,
+        bool withCharges, bool withIsotopes, bool withRadicals)
 {
     int xAtomCount = *data << 8 | *(data + 1);
     data += 2;
@@ -626,7 +656,7 @@ static inline bool molecule_is_extended_search_needed(const uint8_t *restrict da
         if(hBonds[i] != 1)
             return true;
 
-    if(!withCharges && !withIsotopes)
+    if(!withCharges && !withIsotopes && !withRadicals)
         return false;
 
     for(int i = 0; i < specialCount; i++)
@@ -644,6 +674,11 @@ static inline bool molecule_is_extended_search_needed(const uint8_t *restrict da
 
             case RECORD_ISOTOPE:
                 if(withIsotopes && idx >= heavyAtomCount)
+                    return true;
+                break;
+
+            case RECORD_RADICAL:
+                if(withRadicals && idx >= heavyAtomCount)
                     return true;
                 break;
         }
@@ -709,6 +744,31 @@ static inline bool molecule_has_hydrogen_isotope(const uint8_t *restrict data)
         int idx = value & 0xFFF;
 
         if(data[offset] >> 4 == RECORD_ISOTOPE && idx >= heavyAtomCount)
+            return true;
+    }
+
+    return false;
+}
+
+
+static inline bool molecule_has_hydrogen_radical(const uint8_t *restrict data)
+{
+    int xAtomCount = data[0] << 8 | data[1];
+    int cAtomCount = data[2] << 8 | data[3];
+    int hAtomCount = data[4] << 8 | data[5];
+    int xBondCount = data[6] << 8 | data[7];
+    int specialCount = data[8] << 8 | data[9];
+
+    int heavyAtomCount = xAtomCount + cAtomCount;
+    int base = 10 + xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
+
+    for(int i = 0; i < specialCount; i++)
+    {
+        int offset = base + i * SPECIAL_BLOCK_SIZE;
+        int value = data[offset + 0] * 256 | data[offset + 1];
+        int idx = value & 0xFFF;
+
+        if(data[offset] >> 4 == RECORD_RADICAL && idx >= heavyAtomCount)
             return true;
     }
 
@@ -783,6 +843,12 @@ static inline int8_t molecule_get_formal_charge(const Molecule *restrict molecul
 static inline int8_t molecule_get_atom_mass(const Molecule *restrict molecule, AtomIdx atom)
 {
     return molecule->atomMasses[atom];
+}
+
+
+static inline int8_t molecule_get_atom_radical_type(const Molecule *restrict molecule, AtomIdx atom)
+{
+    return molecule->atomRadicalTypes[atom];
 }
 
 

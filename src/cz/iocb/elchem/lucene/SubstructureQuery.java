@@ -41,6 +41,7 @@ import cz.iocb.elchem.molecule.MoleculeCreator;
 import cz.iocb.elchem.molecule.NativeIsomorphism;
 import cz.iocb.elchem.molecule.NativeIsomorphism.IterationLimitExceededException;
 import cz.iocb.elchem.molecule.QueryFormat;
+import cz.iocb.elchem.molecule.RadicalMode;
 import cz.iocb.elchem.molecule.SearchMode;
 import cz.iocb.elchem.molecule.StereoMode;
 import cz.iocb.elchem.molecule.TautomerMode;
@@ -55,6 +56,7 @@ public class SubstructureQuery extends Query
     private final SearchMode searchMode;
     private final ChargeMode chargeMode;
     private final IsotopeMode isotopeMode;
+    private final RadicalMode radicalMode;
     private final StereoMode stereoMode;
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
@@ -64,8 +66,9 @@ public class SubstructureQuery extends Query
 
 
     public SubstructureQuery(String field, String query, QueryFormat queryFormat, SearchMode searchMode,
-            ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode, AromaticityMode aromaticityMode,
-            TautomerMode tautomerMode, long iterationLimit) throws CDKException, IOException, TimeoutException
+            ChargeMode chargeMode, IsotopeMode isotopeMode, RadicalMode radicalMode, StereoMode stereoMode,
+            AromaticityMode aromaticityMode, TautomerMode tautomerMode, long iterationLimit)
+            throws CDKException, IOException, TimeoutException
     {
         this.field = field;
         this.query = query;
@@ -73,6 +76,7 @@ public class SubstructureQuery extends Query
         this.searchMode = searchMode;
         this.chargeMode = chargeMode;
         this.isotopeMode = isotopeMode;
+        this.radicalMode = radicalMode;
         this.stereoMode = stereoMode;
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
@@ -114,9 +118,9 @@ public class SubstructureQuery extends Query
     {
         return field.equals(other.field) && query.equals(other.query) && queryFormat.equals(other.queryFormat)
                 && searchMode.equals(other.searchMode) && chargeMode.equals(other.chargeMode)
-                && isotopeMode.equals(other.isotopeMode) && stereoMode.equals(other.stereoMode)
-                && aromaticityMode.equals(other.aromaticityMode) && tautomerMode.equals(other.tautomerMode)
-                && iterationLimit == other.iterationLimit;
+                && isotopeMode.equals(other.isotopeMode) && radicalMode.equals(other.radicalMode)
+                && stereoMode.equals(other.stereoMode) && aromaticityMode.equals(other.aromaticityMode)
+                && tautomerMode.equals(other.tautomerMode) && iterationLimit == other.iterationLimit;
     }
 
 
@@ -129,6 +133,7 @@ public class SubstructureQuery extends Query
         result = 3 * result + searchMode.hashCode();
         result = 3 * result + chargeMode.hashCode();
         result = 3 * result + isotopeMode.hashCode();
+        result = 3 * result + radicalMode.hashCode();
         result = 3 * result + stereoMode.hashCode();
         result = 3 * result + aromaticityMode.hashCode();
         result = 3 * result + tautomerMode.hashCode();
@@ -162,8 +167,8 @@ public class SubstructureQuery extends Query
             this.tautomer = tautomer;
 
             this.moleculeData = (new BinaryMoleculeBuilder(tautomer, chargeMode == ChargeMode.IGNORE,
-                    isotopeMode == IsotopeMode.IGNORE, stereoMode == StereoMode.IGNORE))
-                            .asBytes(searchMode == SearchMode.EXACT);
+                    isotopeMode == IsotopeMode.IGNORE, radicalMode == RadicalMode.IGNORE,
+                    stereoMode == StereoMode.IGNORE)).asBytes(searchMode == SearchMode.EXACT);
 
             boolean hasRestH = false;
 
@@ -190,7 +195,8 @@ public class SubstructureQuery extends Query
                 this.restH = null;
             }
 
-            this.molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
+            this.molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false, false,
+                    false);
             this.info = new HashMap<Integer, Set<Integer>>();
             this.fp = IOCBFingerprint.getSubstructureFingerprint(molecule, info);
         }
@@ -359,7 +365,7 @@ public class SubstructureQuery extends Query
                     this.molDocValue = DocValues.getBinary(context.reader(), field);
 
                     this.isomorphism = new NativeIsomorphism(moleculeData, restH, searchMode, chargeMode, isotopeMode,
-                            stereoMode);
+                            radicalMode, stereoMode);
                 }
 
 

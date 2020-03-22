@@ -12,6 +12,7 @@ public final class BinaryMolecule extends Molecule
         public static final byte ISOTOPE = 1;
         public static final byte TETRAHEDRAL_STEREO = 2;
         public static final byte BOND_STEREO = 3;
+        public static final byte RADICAL = 4;
     }
 
 
@@ -33,16 +34,19 @@ public final class BinaryMolecule extends Molecule
     private final byte[] atomHydrogens;
     private final byte[] atomCharges;
     private final byte[] atomMasses;
+    private final byte[] atomRadicalTypes;
     private final byte[] atomStereo;
     private final byte[] bondStereo;
     private final boolean[] restH;
 
 
     public BinaryMolecule(byte[] data, boolean[] restH, boolean extended, boolean withCharges, boolean withIsotopes,
-            boolean withStereo, boolean ignoreChargedHydrogens, boolean ignoreHydrogenIsotopes)
+            boolean withRadicals, boolean withStereo, boolean ignoreChargedHydrogens, boolean ignoreHydrogenIsotopes,
+            boolean ignoreHydrogenRadicals)
     {
         ignoreChargedHydrogens &= !extended;
         ignoreHydrogenIsotopes &= !extended;
+        ignoreHydrogenRadicals &= !extended;
 
         int possition = 0;
 
@@ -69,6 +73,7 @@ public final class BinaryMolecule extends Molecule
         byte[] bondTypes = new byte[bondCount];
         byte[] atomCharges = withCharges ? new byte[atomCount] : null;
         byte[] atomMasses = withIsotopes ? new byte[atomCount] : null;
+        byte[] atomRadicalTypes = withRadicals ? new byte[atomCount] : null;
         byte[] atomStereo = withStereo ? new byte[atomCount] : null;
         byte[] bondStereo = withStereo ? new byte[bondCount] : null;
         int[] contains = new int[bondCount * 2];
@@ -139,7 +144,7 @@ public final class BinaryMolecule extends Molecule
 
         boolean[] ignoredHydrogen = null;
 
-        if(ignoreChargedHydrogens || ignoreHydrogenIsotopes)
+        if(ignoreChargedHydrogens || ignoreHydrogenIsotopes || ignoreHydrogenRadicals)
         {
             int base = possition + hAtomCount * HBOND_BLOCK_SIZE;
             ignoredHydrogen = new boolean[hAtomCount];
@@ -159,6 +164,11 @@ public final class BinaryMolecule extends Molecule
 
                     case SpecialRecordType.ISOTOPE:
                         if(ignoreHydrogenIsotopes && idx >= heavyAtomCount)
+                            ignoredHydrogen[idx - heavyAtomCount] = true;
+                        break;
+
+                    case SpecialRecordType.RADICAL:
+                        if(ignoreHydrogenRadicals && idx >= heavyAtomCount)
                             ignoredHydrogen[idx - heavyAtomCount] = true;
                         break;
                 }
@@ -184,7 +194,8 @@ public final class BinaryMolecule extends Molecule
 
             int x = value & 0xFFF;
 
-            if(x < atomCount && ((!ignoreChargedHydrogens && !ignoreHydrogenIsotopes) || ignoredHydrogen[i] == false))
+            if(x < atomCount && (!(ignoreChargedHydrogens || ignoreHydrogenIsotopes || ignoreHydrogenRadicals)
+                    || ignoredHydrogen[i] == false))
                 atomHydrogens[x]++;
 
 
@@ -232,6 +243,11 @@ public final class BinaryMolecule extends Molecule
                         atomMasses[idx] = data[offset + 2];
                     break;
 
+                case SpecialRecordType.RADICAL:
+                    if(withRadicals && idx < atomCount)
+                        atomRadicalTypes[idx] = data[offset + 2];
+                    break;
+
                 case SpecialRecordType.TETRAHEDRAL_STEREO:
                     if(withStereo && idx < atomCount)
                         atomStereo[idx] = data[offset + 2];
@@ -254,6 +270,7 @@ public final class BinaryMolecule extends Molecule
         this.atomHydrogens = atomHydrogens;
         this.atomCharges = atomCharges;
         this.atomMasses = atomMasses;
+        this.atomRadicalTypes = atomRadicalTypes;
         this.atomStereo = atomStereo;
         this.bondTypes = bondTypes;
         this.bondStereo = bondStereo;
@@ -276,7 +293,7 @@ public final class BinaryMolecule extends Molecule
 
     public BinaryMolecule(byte[] data)
     {
-        this(data, null, false, false, false, false, false, false);
+        this(data, null, false, false, false, false, false, false, false, false);
     }
 
 
@@ -351,6 +368,13 @@ public final class BinaryMolecule extends Molecule
 
 
     @Override
+    public final byte getAtomRadicalType(int atom)
+    {
+        return atomRadicalTypes[atom];
+    }
+
+
+    @Override
     public final byte getAtomStereo(int atom)
     {
         return atomStereo[atom];
@@ -406,7 +430,7 @@ public final class BinaryMolecule extends Molecule
     }
 
 
-    public static boolean isExtended(byte[] data, boolean withCharges, boolean withIsotopes)
+    public static boolean isExtended(byte[] data, boolean withCharges, boolean withIsotopes, boolean withRadicals)
     {
         int possition = 0;
 
@@ -461,7 +485,7 @@ public final class BinaryMolecule extends Molecule
             if(hBonds[i] != 1)
                 return true;
 
-        if(!withCharges && !withIsotopes)
+        if(!withCharges && !withIsotopes && !withRadicals)
             return false;
 
         for(int i = 0; i < specialCount; i++)
@@ -481,6 +505,11 @@ public final class BinaryMolecule extends Molecule
 
                 case SpecialRecordType.ISOTOPE:
                     if(withIsotopes && idx >= heavyAtomCount)
+                        return true;
+                    break;
+
+                case SpecialRecordType.RADICAL:
+                    if(withRadicals && idx >= heavyAtomCount)
                         return true;
                     break;
             }

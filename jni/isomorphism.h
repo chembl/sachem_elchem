@@ -68,6 +68,15 @@ IsotopeMode;
 
 typedef enum
 {
+    RADICAL_IGNORE = 0,
+    RADICAL_DEFAULT_AS_STANDARD = 1,
+    RADICAL_DEFAULT_AS_ANY = 2
+}
+RadicalMode;
+
+
+typedef enum
+{
     STEREO_IGNORE = 0,
     STEREO_STRICT = 1
 }
@@ -89,6 +98,7 @@ typedef struct
     SearchMode searchMode;
     ChargeMode chargeMode;
     IsotopeMode isotopeMode;
+    RadicalMode radicalMode;
     StereoMode stereoMode;
 
     const Molecule *restrict query;
@@ -214,7 +224,7 @@ static inline size_t vf2state_match_mem_size(const uint8_t *restrict data, bool 
 
 
 static inline VF2State *vf2state_create(void *memory, const Molecule *restrict query, SearchMode searchMode,
-        ChargeMode chargeMode, IsotopeMode isotopeMode, StereoMode stereoMode)
+        ChargeMode chargeMode, IsotopeMode isotopeMode, RadicalMode radicalMode, StereoMode stereoMode)
 {
     VF2State *restrict vf2state = (VF2State *) alloc_memory(&memory, sizeof(VF2State));
 
@@ -278,6 +288,7 @@ static inline VF2State *vf2state_create(void *memory, const Molecule *restrict q
     vf2state->searchMode = searchMode;
     vf2state->chargeMode = chargeMode;
     vf2state->isotopeMode = isotopeMode;
+    vf2state->radicalMode = radicalMode;
     vf2state->stereoMode = stereoMode;
     vf2state->query = query;
     vf2state->queryAtomCount = queryAtomCount;
@@ -410,6 +421,16 @@ static inline bool vf2state_is_feasible_pair(const VF2State *restrict vf2state)
         int8_t targetMass = molecule_get_atom_mass(vf2state->target, vf2state->targetIdx);
 
         if(queryMass != targetMass && (queryMass != 0 || vf2state->isotopeMode == ISOTOPE_DEFAULT_AS_STANDARD))
+            return false;
+    }
+
+
+    if(vf2state->radicalMode != RADICAL_IGNORE)
+    {
+        int8_t queryType = molecule_get_atom_radical_type(vf2state->query, vf2state->queryIdx);
+        int8_t targetType = molecule_get_atom_radical_type(vf2state->target, vf2state->targetIdx);
+
+        if(queryType != targetType && (queryType != 0 || vf2state->radicalMode == RADICAL_DEFAULT_AS_STANDARD))
             return false;
     }
 

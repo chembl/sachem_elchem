@@ -16,6 +16,7 @@ package cz.iocb.elchem.molecule;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import org.openscience.cdk.CDKConstants;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.interfaces.IAtom;
 import org.openscience.cdk.interfaces.IAtomContainer;
@@ -25,6 +26,7 @@ import org.openscience.cdk.interfaces.IDoubleBondStereochemistry.Conformation;
 import org.openscience.cdk.interfaces.IPseudoAtom;
 import org.openscience.cdk.interfaces.IStereoElement;
 import org.openscience.cdk.interfaces.ITetrahedralChirality.Stereo;
+import org.openscience.cdk.io.MDLV2000Writer.SPIN_MULTIPLICITY;
 import org.openscience.cdk.isomorphism.matchers.QueryBond;
 import org.openscience.cdk.stereo.DoubleBondStereochemistry;
 import org.openscience.cdk.stereo.ExtendedCisTrans;
@@ -56,7 +58,7 @@ public class BinaryMoleculeBuilder
 
 
     public BinaryMoleculeBuilder(IAtomContainer molecule, boolean ignoreCharges, boolean ignoreIsotopes,
-            boolean ignoreStereo) throws CDKException
+            boolean ignoreRadicals, boolean ignoreStereo) throws CDKException
     {
         try
         {
@@ -164,6 +166,9 @@ public class BinaryMoleculeBuilder
                 specialCount++;
 
             if(a.getMassNumber() != null)
+                specialCount++;
+
+            if(a.getProperty(CDKConstants.SPIN_MULTIPLICITY) != null)
                 specialCount++;
         }
 
@@ -366,7 +371,7 @@ public class BinaryMoleculeBuilder
                 throw new CDKException("too high atom valence");
 
 
-        /* write charges & isotopes */
+        /* write charges, isotopes & radicals */
         for(IAtom a : molecule.atoms())
         {
             if(a.getFormalCharge() != 0)
@@ -393,6 +398,17 @@ public class BinaryMoleculeBuilder
                 stream.write(SpecialRecordType.ISOTOPE << 4 | idx / 256);
                 stream.write(idx % 256);
                 stream.write(mass);
+            }
+
+            if(a.getProperty(CDKConstants.SPIN_MULTIPLICITY) != null)
+            {
+                SPIN_MULTIPLICITY multiplicity = (SPIN_MULTIPLICITY) a.getProperty(CDKConstants.SPIN_MULTIPLICITY);
+
+                int idx = molecule.indexOf(a);
+
+                stream.write(SpecialRecordType.RADICAL << 4 | idx / 256);
+                stream.write(idx % 256);
+                stream.write(multiplicity.getValue());
             }
         }
 

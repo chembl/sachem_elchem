@@ -43,6 +43,7 @@ public class Isomorphism
     private final SearchMode searchMode;
     private final ChargeMode chargeMode;
     private final IsotopeMode isotopeMode;
+    private final RadicalMode radicalMode;
     private final StereoMode stereoMode;
 
     private final Molecule query;
@@ -53,18 +54,20 @@ public class Isomorphism
 
     public Isomorphism(Molecule query)
     {
-        this(query, SearchMode.SUBSTRUCTURE, ChargeMode.IGNORE, IsotopeMode.IGNORE, StereoMode.IGNORE);
+        this(query, SearchMode.SUBSTRUCTURE, ChargeMode.IGNORE, IsotopeMode.IGNORE, RadicalMode.IGNORE,
+                StereoMode.IGNORE);
     }
 
 
     public Isomorphism(Molecule query, SearchMode searchMode, ChargeMode chargeMode, IsotopeMode isotopeMode,
-            StereoMode stereoMode)
+            RadicalMode radicalMode, StereoMode stereoMode)
     {
         int queryAtomCount = query.getAtomCount();
 
         this.searchMode = searchMode;
         this.chargeMode = chargeMode;
         this.isotopeMode = isotopeMode;
+        this.radicalMode = radicalMode;
         this.stereoMode = stereoMode;
         this.query = query;
         this.queryAtomCount = queryAtomCount;
@@ -273,6 +276,16 @@ public class Isomorphism
                 byte targetMass = target.getAtomMass(targetIdx);
 
                 if(queryMass != targetMass && (queryMass != 0 || isotopeMode == IsotopeMode.DEFAULT_AS_STANDARD))
+                    return false;
+            }
+
+
+            if(radicalMode != RadicalMode.IGNORE)
+            {
+                byte queryType = query.getAtomRadicalType(queryIdx);
+                byte targetType = target.getAtomRadicalType(targetIdx);
+
+                if(queryType != targetType && (queryType != 0 || radicalMode == RadicalMode.DEFAULT_AS_STANDARD))
                     return false;
             }
 
@@ -678,7 +691,7 @@ public class Isomorphism
             /*
             The goal has been reached, so the query has been mapped to target,
             therfore query is a substructure of the target.
-
+            
             However, if this was an R-group query, the result could still be
             rejected.If the RestH property is true for some atom with an R-group
             linked, then the R-group may only be substituted with a member

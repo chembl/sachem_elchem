@@ -133,9 +133,10 @@ public class SimilarStructureQuery extends Query
             this.parentQuery = SimilarStructureQuery.this;
             this.tautomer = tautomer;
 
-            byte[] moleculeData = (new BinaryMoleculeBuilder(tautomer, true, true, true)).asBytes(false);
+            byte[] moleculeData = (new BinaryMoleculeBuilder(tautomer, true, true, true, true)).asBytes(false);
 
-            BinaryMolecule molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false);
+            BinaryMolecule molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false,
+                    false, false);
 
             this.fp = IOCBFingerprint.getSimilarityFingerprint(molecule, similarityRadius);
             this.fpSize = fp.stream().map(i -> i.size()).reduce(0, Integer::sum);
