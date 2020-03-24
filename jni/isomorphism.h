@@ -835,6 +835,134 @@ static inline bool vf2state_is_stereo_valid(const VF2State *restrict vf2state)
 }
 
 
+static inline AtomIdx sgroup_get_query_atom(const VF2State *restrict vf2state, int atom)
+{
+    if(atom >= vf2state->query->atomCount)
+        return UNDEFINED_CORE;
+
+    return atom;
+}
+
+
+static inline AtomIdx sgroup_get_target_atom(const VF2State *restrict vf2state, int atom)
+{
+    if(atom >= vf2state->target->atomCount)
+        return UNDEFINED_CORE;
+
+    return vf2state->targetCore[atom];
+}
+
+
+static inline bool vf2state_match_sgroup(const VF2State *restrict vf2state, const SGroup *restrict queryGroup, const SGroup *restrict targetGroup)
+{
+    if(vf2state->searchMode == SEARCH_EXACT)
+    {
+        if(queryGroup->atomCount != targetGroup->atomCount || queryGroup->bondCount != targetGroup->bondCount)
+            return false;
+    }
+    else
+    {
+        if(queryGroup->atomCount > targetGroup->atomCount || queryGroup->bondCount > targetGroup->bondCount)
+            return false;
+    }
+
+
+    if(queryGroup->type != targetGroup->type)
+        return false;
+
+    if(queryGroup->subtype != targetGroup->subtype)
+        return false;
+
+    if(queryGroup->connectivity != targetGroup->connectivity)
+        return false;
+
+
+    for(int i = 0; i < queryGroup->atomCount; i++)
+    {
+        bool found = false;
+
+        for(int j = 0; j < targetGroup->atomCount; j++)
+            if(sgroup_get_query_atom(vf2state, queryGroup->atoms[i]) == sgroup_get_query_atom(vf2state, targetGroup->atoms[j]))
+                found = true;
+
+        if(!found)
+            return false;
+    }
+
+    for(int i = 0; i < queryGroup->bondCount; i++)
+    {
+        bool found = false;
+
+        for(int j = 0; j < targetGroup->bondCount; j++)
+        {
+            AtomIdx q0 = sgroup_get_query_atom(vf2state, queryGroup->bonds[i][0]);
+            AtomIdx q1 = sgroup_get_query_atom(vf2state, queryGroup->bonds[i][1]);
+
+            AtomIdx t0 = sgroup_get_query_atom(vf2state, targetGroup->bonds[j][0]);
+            AtomIdx t1 = sgroup_get_query_atom(vf2state, targetGroup->bonds[j][1]);
+
+            if((q0 == t0 && q1 == t1) || (q0 == t1 && q1 == t0))
+                found = true;
+        }
+
+        if(!found)
+            return false;
+    }
+
+    return true;
+}
+
+
+static inline bool vf2state_are_sgroups_valid(const VF2State *restrict vf2state)
+{
+    SGroup *restrict queryGroups = vf2state->query->sgroups;
+    SGroup *restrict targetGroups = vf2state->target->sgroups;
+
+    if(likely(queryGroups == NULL && targetGroups == NULL))
+        return true;
+
+    if(vf2state->query->sgroupCount > vf2state->target->sgroupCount)
+        return false;
+
+    if(vf2state->searchMode == SEARCH_EXACT && vf2state->query->sgroupCount != vf2state->target->sgroupCount)
+        return false;
+
+    bool used[vf2state->target->sgroupCount];
+    int undo[vf2state->query->sgroupCount];
+
+    memset(used, 0, sizeof(bool) * vf2state->target->sgroupCount);
+
+    int q = 0;
+    int t = 0;
+
+    main:
+    while(true)
+    {
+        if(q == vf2state->query->sgroupCount)
+            return true;
+
+        while(t < vf2state->target->sgroupCount)
+        {
+            if(!used[t] && vf2state_match_sgroup(vf2state, queryGroups + q, targetGroups + t))
+            {
+                used[t] = true;
+                undo[q++] = t;
+                t = 0;
+                goto main;
+            }
+
+            t++;
+        }
+
+        if(q == 0)
+            return false;
+
+        t = undo[--q];
+        used[t++] = false;
+    }
+}
+
+
 static inline bool vf2state_is_match_valid(const VF2State *restrict vf2state)
 {
     const Molecule *restrict query = vf2state->query;
@@ -891,6 +1019,8 @@ static inline bool vf2state_is_match_valid(const VF2State *restrict vf2state)
     if(unlikely(vf2state->stereoMode == STEREO_STRICT) && !vf2state_is_stereo_valid(vf2state))
             return false;
 
+    if(unlikely(!vf2state_are_sgroups_valid(vf2state)))
+            return false;
 
     return true;
 }
@@ -944,6 +1074,9 @@ static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *r
 {
     vf2state->counter = limit > 0 ? limit : (uint64_t) -1;
 
+    if(vf2state->query->sgroups != NULL && target->sgroups == NULL)
+        return false;
+
     if(likely(vf2state->searchMode != SEARCH_EXACT))
     {
         if(vf2state->query->heavyAtomCount + vf2state->query->hydrogenAtomCount > target->heavyAtomCount + target->hydrogenAtomCount)
@@ -953,6 +1086,9 @@ static inline bool vf2state_match(VF2State *restrict vf2state, const Molecule *r
             return false;
 
         if(vf2state->query->bondCount > target->bondCount)
+            return false;
+
+        if(vf2state->query->sgroups != NULL && vf2state->query->sgroupCount != target->sgroupCount)
             return false;
     }
     else

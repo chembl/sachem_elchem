@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import cz.iocb.elchem.molecule.Molecule.AtomType;
 import cz.iocb.elchem.molecule.Molecule.BondType;
+import cz.iocb.elchem.molecule.Molecule.SGroup;
 
 
 
@@ -681,6 +682,134 @@ public class Isomorphism
         }
 
 
+        private final boolean areSGroupsValid()
+        {
+            SGroup[] queryGroups = query.getSGroups();
+            SGroup[] targetGroups = target.getSGroups();
+
+            if(queryGroups == null && targetGroups == null)
+                return true;
+
+            if(queryGroups.length > targetGroups.length)
+                return false;
+
+            if(searchMode == SearchMode.EXACT && queryGroups.length != targetGroups.length)
+                return false;
+
+            boolean[] used = new boolean[targetGroups.length];
+            int[] undo = new int[queryGroups.length];
+
+            int q = 0;
+            int t = 0;
+
+            main:
+            while(true)
+            {
+                if(q == queryGroups.length)
+                    return true;
+
+                while(t < targetGroups.length)
+                {
+                    if(!used[t] && matchSGroup(queryGroups[q], targetGroups[t]))
+                    {
+                        used[t] = true;
+                        undo[q++] = t;
+                        t = 0;
+                        continue main;
+                    }
+
+                    t++;
+                }
+
+                if(q == 0)
+                    return false;
+
+                t = undo[--q];
+                used[t++] = false;
+            }
+        }
+
+
+        private int sgroup_get_query_atom(int atom)
+        {
+            if(atom >= query.getAtomCount())
+                return UNDEFINED_CORE;
+
+            return atom;
+        }
+
+
+        private int sgroup_get_target_atom(int atom)
+        {
+            if(atom >= target.getAtomCount())
+                return UNDEFINED_CORE;
+
+            return targetCore[atom];
+        }
+
+
+        private boolean matchSGroup(SGroup queryGroup, SGroup targetGroup)
+        {
+            if(searchMode == SearchMode.EXACT)
+            {
+                if(queryGroup.atoms.length != targetGroup.atoms.length
+                        || queryGroup.bonds.length != targetGroup.bonds.length)
+                    return false;
+            }
+            else
+            {
+                if(queryGroup.atoms.length > targetGroup.atoms.length
+                        || queryGroup.bonds.length > targetGroup.bonds.length)
+                    return false;
+            }
+
+
+            if(queryGroup.type != targetGroup.type)
+                return false;
+
+            if(queryGroup.subtype != targetGroup.subtype)
+                return false;
+
+            if(queryGroup.connectivity != targetGroup.connectivity)
+                return false;
+
+
+            for(int i = 0; i < queryGroup.atoms.length; i++)
+            {
+                boolean found = false;
+
+                for(int j = 0; j < targetGroup.atoms.length; j++)
+                    if(sgroup_get_query_atom(queryGroup.atoms[i]) == sgroup_get_target_atom(targetGroup.atoms[j]))
+                        found = true;
+
+                if(!found)
+                    return false;
+            }
+
+            for(int i = 0; i < queryGroup.bonds.length; i++)
+            {
+                boolean found = false;
+
+                for(int j = 0; j < targetGroup.bonds.length; j++)
+                {
+                    int q0 = sgroup_get_query_atom(queryGroup.bonds[i][0]);
+                    int q1 = sgroup_get_query_atom(queryGroup.bonds[i][1]);
+
+                    int t0 = sgroup_get_target_atom(targetGroup.bonds[j][0]);
+                    int t1 = sgroup_get_target_atom(targetGroup.bonds[j][1]);
+
+                    if(q0 == t0 && q1 == t1 || q0 == t1 && q1 == t0)
+                        found = true;
+                }
+
+                if(!found)
+                    return false;
+            }
+
+            return true;
+        }
+
+
         private final boolean isMatchValid()
         {
             int queryAtomCount = query.getAtomCount();
@@ -733,6 +862,8 @@ public class Isomorphism
             if(stereoMode == StereoMode.STRICT && !isStereoValid())
                 return false;
 
+            if(!areSGroupsValid())
+                return false;
 
             return true;
         }
@@ -814,6 +945,9 @@ public class Isomorphism
 
         private final boolean match(Molecule target, List<int[]> result, int limit)
         {
+            if(query.getSGroups() != null && target.getSGroups() == null)
+                return false;
+
             if(searchMode != SearchMode.EXACT)
             {
                 if(query.getOriginalAtomCount() > target.getOriginalAtomCount())
@@ -823,6 +957,9 @@ public class Isomorphism
                     return false;
 
                 if(queryAtomCount > target.getAtomCount() || query.getBondCount() > target.getBondCount())
+                    return false;
+
+                if(query.getSGroups() != null && query.getSGroups().length != target.getSGroups().length)
                     return false;
             }
             else

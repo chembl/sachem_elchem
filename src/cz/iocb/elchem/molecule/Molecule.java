@@ -1,7 +1,20 @@
 package cz.iocb.elchem.molecule;
 
+
+
 public abstract class Molecule
 {
+    public static class SGroup
+    {
+        byte type;
+        byte subtype;
+        byte connectivity;
+
+        int atoms[];
+        int bonds[][];
+    }
+
+
     public static abstract class AtomType
     {
         public static final byte H = 1;
@@ -71,6 +84,44 @@ public abstract class Molecule
     }
 
 
+    public static abstract class SgroupType
+    {
+        public static final byte NONE = 0;
+        public static final byte SRU = 1;
+        public static final byte MOD = 2;
+        public static final byte MON = 3;
+        public static final byte COP = 4;
+        public static final byte GEN = 5;
+        public static final byte ANY = 6;
+        public static final byte CRO = 7;
+        public static final byte MER = 8;
+        public static final byte GRA = 9;
+        public static final byte COM = 10;
+        public static final byte FOR = 11;
+        public static final byte MIX = 12;
+    }
+
+
+    public static abstract class SgroupSubtype
+    {
+        public static final byte NONE = 0;
+        public static final byte ALT = 1;
+        public static final byte RAN = 2;
+        public static final byte BLO = 3;
+        public static final byte UNKNOWN = -1;
+    }
+
+
+    public static abstract class SgroupConnectivity
+    {
+        public static final byte NONE = 0;
+        public static final byte HH = 1;
+        public static final byte HT = 2;
+        public static final byte EU = 3;
+        public static final byte UNKNOWN = -1;
+    }
+
+
     public static final int MAX_ATOM_IDX = Short.MAX_VALUE;
 
 
@@ -111,6 +162,8 @@ public abstract class Molecule
     public abstract boolean isAtomInBond(int bond, int atom);
 
     public abstract int[] getBondedAtoms(int atom);
+
+    public abstract SGroup[] getSGroups();
 
 
     public final boolean isAtomPseudo(int atom)

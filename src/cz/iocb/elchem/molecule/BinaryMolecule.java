@@ -13,6 +13,13 @@ public final class BinaryMolecule extends Molecule
         public static final byte TETRAHEDRAL_STEREO = 2;
         public static final byte BOND_STEREO = 3;
         public static final byte RADICAL = 4;
+        public static final byte SGROUP_COUNT = 5;
+    }
+
+
+    public static abstract class VariableLengthRecordType
+    {
+        public static final byte SGROUP = 1;
     }
 
 
@@ -38,11 +45,12 @@ public final class BinaryMolecule extends Molecule
     private final byte[] atomStereo;
     private final byte[] bondStereo;
     private final boolean[] restH;
+    private final SGroup[] sgroups;
 
 
     public BinaryMolecule(byte[] data, boolean[] restH, boolean extended, boolean withCharges, boolean withIsotopes,
-            boolean withRadicals, boolean withStereo, boolean ignoreChargedHydrogens, boolean ignoreHydrogenIsotopes,
-            boolean ignoreHydrogenRadicals)
+            boolean withRadicals, boolean withStereo, boolean withSGroup, boolean ignoreChargedHydrogens,
+            boolean ignoreHydrogenIsotopes, boolean ignoreHydrogenRadicals)
     {
         ignoreChargedHydrogens &= !extended;
         ignoreHydrogenIsotopes &= !extended;
@@ -61,6 +69,7 @@ public final class BinaryMolecule extends Molecule
         int originalBondCount = xBondCount + hAtomCount;
         int atomCount = heavyAtomCount;
         int bondCount = xBondCount;
+        int sgroupCount = 0;
 
         if(extended)
         {
@@ -257,6 +266,61 @@ public final class BinaryMolecule extends Molecule
                     if(withStereo && idx < xBondCount) // not for H bond
                         bondStereo[idx] = data[offset + 2];
                     break;
+
+                case SpecialRecordType.SGROUP_COUNT:
+                    sgroupCount = value;
+                    break;
+            }
+        }
+
+
+        possition += specialCount * SPECIAL_BLOCK_SIZE;
+
+        SGroup[] sgroups = null;
+
+        if(withSGroup && sgroupCount > 0)
+        {
+            sgroups = new SGroup[sgroupCount];
+
+            int idx = 0;
+
+            for(int i = 0; i < sgroupCount; i++)
+            {
+                int offset = possition;
+
+                int size = Byte.toUnsignedInt(data[offset++]) * 256 * 256 * 256
+                        | Byte.toUnsignedInt(data[offset++]) * 256 * 256 | Byte.toUnsignedInt(data[offset++]) * 256
+                        | Byte.toUnsignedInt(data[offset++]);
+
+                if(data[offset++] == VariableLengthRecordType.SGROUP)
+                {
+                    SGroup sgroup = new SGroup();
+                    sgroups[idx++] = sgroup;
+
+                    sgroup.type = data[offset++];
+                    sgroup.subtype = data[offset++];
+                    sgroup.connectivity = data[offset++];
+
+                    int atomLength = Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]);
+                    int bondLength = Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]);
+
+                    sgroup.atoms = new int[atomLength];
+                    sgroup.bonds = new int[bondLength][];
+
+                    for(int a = 0; a < atomLength; a++)
+                        sgroup.atoms[a] = Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]);
+
+                    offset += 2 * atomLength;
+
+                    for(int b = 0; b < bondLength; b++)
+                    {
+                        sgroup.bonds[b] = new int[] {
+                                Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]),
+                                Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]) };
+                    }
+                }
+
+                possition += size;
             }
         }
 
@@ -278,6 +342,7 @@ public final class BinaryMolecule extends Molecule
         this.contains = contains;
         this.bondMatrix = bondMatrix;
         this.bondLists = new int[atomCount][];
+        this.sgroups = sgroups;
 
         for(int i = 0; i < atomCount; i++)
         {
@@ -293,7 +358,7 @@ public final class BinaryMolecule extends Molecule
 
     public BinaryMolecule(byte[] data)
     {
-        this(data, null, false, false, false, false, false, false, false, false);
+        this(data, null, false, false, false, false, false, false, false, false, false);
     }
 
 
@@ -430,7 +495,8 @@ public final class BinaryMolecule extends Molecule
     }
 
 
-    public static boolean isExtended(byte[] data, boolean withCharges, boolean withIsotopes, boolean withRadicals)
+    public static boolean isExtended(byte[] data, boolean withRGroups, boolean withCharges, boolean withIsotopes,
+            boolean withRadicals)
     {
         int possition = 0;
 
@@ -443,7 +509,7 @@ public final class BinaryMolecule extends Molecule
         int heavyAtomCount = xAtomCount + cAtomCount;
 
         for(int i = 0; i < xAtomCount; i++)
-            if(data[possition++] < 0)
+            if(withRGroups && data[possition++] < 0)
                 return true;
 
 
@@ -554,5 +620,12 @@ public final class BinaryMolecule extends Molecule
                 return true;
 
         return false;
+    }
+
+
+    @Override
+    public SGroup[] getSGroups()
+    {
+        return sgroups;
     }
 }

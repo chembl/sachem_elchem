@@ -195,8 +195,7 @@ public class SubstructureQuery extends Query
                 this.restH = null;
             }
 
-            this.molecule = new BinaryMolecule(moleculeData, null, false, false, false, false, false, false, false,
-                    false);
+            this.molecule = new BinaryMolecule(moleculeData);
             this.info = new HashMap<Integer, Set<Integer>>();
             this.fp = IOCBFingerprint.getSubstructureFingerprint(molecule, info);
         }

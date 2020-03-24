@@ -46,7 +46,14 @@ enum SpecialRecordType
     RECORD_ISOTOPE = 1,
     RECORD_TETRAHEDRAL_STEREO = 2,
     RECORD_BOND_STEREO = 3,
-    RECORD_RADICAL = 4
+    RECORD_RADICAL = 4,
+    RECORD_SGROUP_COUNT = 5
+};
+
+
+enum VariableLengthRecordType
+{
+    VAR_RECORD_SGROUP = 1
 };
 
 
@@ -68,9 +75,62 @@ enum BondStereoType
 };
 
 
+enum SgroupType
+{
+    SGROUP_TYPE_NONE = 0,
+    SGROUP_TYPE_SRU = 1,
+    SGROUP_TYPE_MOD = 2,
+    SGROUP_TYPE_MON = 3,
+    SGROUP_TYPE_COP = 4,
+    SGROUP_TYPE_GEN = 5,
+    SGROUP_TYPE_ANY = 6,
+    SGROUP_TYPE_CRO = 7,
+    SGROUP_TYPE_MER = 8,
+    SGROUP_TYPE_GRA = 9,
+    SGROUP_TYPE_COM = 10,
+    SGROUP_TYPE_FOR = 11,
+    SGROUP_TYPE_MIX = 12
+};
+
+
+enum SgroupSubtype
+{
+    SGROUP_SUBTYPE_NONE = 0,
+    SGROUP_SUBTYPE_ALT = 1,
+    SGROUP_SUBTYPE_RAN = 2,
+    SGROUP_SUBTYPE_BLO = 3,
+    SGROUP_SUBTYPE_UNKNOWN = -1
+};
+
+
+enum SgroupConnectivity
+{
+    SGROUP_CONNECTIVITY_NONE = 0,
+    SGROUP_CONNECTIVITY_HH = 1,
+    SGROUP_CONNECTIVITY_HT = 2,
+    SGROUP_CONNECTIVITY_EU = 3,
+    SGROUP_CONNECTIVITY_UNKNOWN = -1
+};
+
+
 typedef int16_t AtomIdx;
 typedef int16_t BondIdx;
 typedef int16_t MolSize;
+
+
+typedef struct
+{
+    int8_t type;
+    int8_t subtype;
+    int8_t connectivity;
+
+    int atomCount;
+    int bondCount;
+
+    AtomIdx *restrict atoms;
+    AtomIdx (*restrict bonds)[2];
+}
+SGroup;
 
 
 typedef struct
@@ -84,6 +144,8 @@ typedef struct
     int hydrogenAtomCount;
     int hydrogenBondCount;
 
+    int sgroupCount;
+
     bool extended;
     bool hasPseudoAtom;
 
@@ -96,6 +158,7 @@ typedef struct
     uint8_t *restrict bondTypes;
     uint8_t *restrict bondStereo;
     uint8_t *restrict restH;
+    SGroup *restrict sgroups;
 
     BondIdx *restrict bondMatrix;
     AtomIdx *restrict bondLists;
@@ -107,12 +170,17 @@ Molecule;
 
 
 static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8_t *restrict restData, bool extended,
-        bool withCharges, bool withIsotopes, bool withRadicals, bool withStereo,
+        bool withCharges, bool withIsotopes, bool withRadicals, bool withStereo, bool withSGroup,
         bool ignoreChargedHydrogens, bool ignoreHydrogenIsotopes, bool ignoreHydrogenRadicals)
 {
-    int atomCount = (*(data + 0) << 8 | *(data + 1)) + (*(data + 2) << 8 | *(data + 3));
-    int hAtomCount = *(data + 4) << 8 | *(data + 5);
-    int bondCount = *(data + 6) << 8 | *(data + 7);
+    int xAtomCount = data[0] << 8 | data[1];
+    int cAtomCount = data[2] << 8 | data[3];
+    int hAtomCount = data[4] << 8 | data[5];
+    int xBondCount = data[6] << 8 | data[7];
+    int specialCount = data[8] << 8 | data[9];
+
+    int atomCount = xAtomCount + cAtomCount;
+    int bondCount = xBondCount;
 
     if(extended)
     {
@@ -135,6 +203,42 @@ static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8
 
     if(!extended && (ignoreChargedHydrogens || ignoreHydrogenIsotopes || ignoreHydrogenRadicals))
         memsize += align_size(sizeof(bool) * hAtomCount);
+
+
+    if(withSGroup)
+    {
+        data += 10 + xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
+
+        int sgroupCount = 0;
+
+        for(int i = 0; i < specialCount; i++)
+        {
+            if(data[0] >> 4 == RECORD_SGROUP_COUNT)
+                sgroupCount = (data[0] * 256 | data[1]) & 0xFFF;
+
+            data += SPECIAL_BLOCK_SIZE;
+        }
+
+
+        memsize += align_size(sgroupCount * sizeof(SGroup));
+
+        for(int i = 0; i < sgroupCount; i++)
+        {
+            int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+
+            if(data[4] == VAR_RECORD_SGROUP)
+            {
+                int atomLength = data[8] * 256 | data[9];
+                int bondLength = data[10] * 256 | data[11];
+
+                memsize += align_size(atomLength * sizeof(AtomIdx));
+                memsize += align_size(bondLength * 2 * sizeof(AtomIdx));
+            }
+
+            data += size;
+        }
+    }
+
 
     return memsize;
 }
@@ -162,12 +266,23 @@ static inline size_t molecule_extended_mem_size(const Molecule *restrict molecul
     memsize += align_size(bondCount * 2 * sizeof(AtomIdx));
     memsize += align_size(atomCount * atomCount * sizeof(BondIdx));
 
+    if(molecule->sgroups != NULL)
+    {
+        memsize += align_size(molecule->sgroupCount * sizeof(SGroup));
+
+        for(int i = 0; i < molecule->sgroupCount; i++)
+        {
+            memsize += align_size(molecule->sgroups[i].atomCount * sizeof(AtomIdx));
+            memsize += align_size(molecule->sgroups[i].bondCount * 2 * sizeof(AtomIdx));
+        }
+    }
+
     return memsize;
 }
 
 
 static inline Molecule *molecule_create(void *memory, const uint8_t *restrict data, uint8_t *restrict restData,
-        bool extended, bool withCharges, bool withIsotopes, bool withRadicals, bool withStereo,
+        bool extended, bool withCharges, bool withIsotopes, bool withRadicals, bool withStereo, bool withSGroup,
         bool ignoreChargedHydrogens, bool ignoreHydrogenIsotopes, bool ignoreHydrogenRadicals)
 {
     ignoreChargedHydrogens &= !extended;
@@ -197,6 +312,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     int hydrogenBondCount = hAtomCount;
     int atomCount = xAtomCount + cAtomCount;
     int bondCount = xBondCount;
+    int sgroupCount = 0;
 
 
     if(extended)
@@ -417,6 +533,62 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
                 if(withStereo && idx < xBondCount) // not for H bond
                     bondStereo[idx] = data[offset + 2];
                 break;
+
+            case RECORD_SGROUP_COUNT:
+                sgroupCount = idx;
+                break;
+        }
+    }
+
+    data += specialCount * SPECIAL_BLOCK_SIZE;
+
+
+    SGroup *sgroups = NULL;
+
+    if(withSGroup && sgroupCount > 0)
+    {
+        sgroups = (SGroup *) alloc_memory_zero(&memory, sgroupCount * sizeof(SGroup));
+
+        int idx = 0;
+
+        for(int i = 0; i < sgroupCount; i++)
+        {
+            int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+            data += 4;
+
+            if(data[0] == VAR_RECORD_SGROUP)
+            {
+                sgroups[idx].type = data[1];
+                sgroups[idx].subtype = data[2];
+                sgroups[idx].connectivity = data[3];
+
+                int atomLength = data[4] * 256 | data[5];
+                int bondLength = data[6] * 256 | data[7];
+
+                data += 8;
+
+                sgroups[idx].atoms = (AtomIdx *) alloc_memory_zero(&memory, atomLength * sizeof(AtomIdx));
+                sgroups[idx].bonds = (AtomIdx (*)[2]) alloc_memory_zero(&memory, bondLength * 2 * sizeof(AtomIdx));
+
+                for(int a = 0; a < atomLength; a++)
+                {
+                    sgroups[idx].atoms[a] = data[0] * 256 | data[1];
+                    data += 2;
+                }
+
+                for(int b = 0; b < bondLength; b++)
+                {
+                    sgroups[idx].bonds[b][0] = data[0] * 256 | data[1];
+                    sgroups[idx].bonds[b][1] = data[2] * 256 | data[3];
+                    data += 4;
+                }
+
+                idx++;
+            }
+            else
+            {
+                data += size;
+            }
         }
     }
 
@@ -440,6 +612,8 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     molecule->bondTypes = bondTypes;
     molecule->bondStereo = bondStereo;
     molecule->restH = restH;
+    molecule->sgroups = sgroups;
+    molecule->sgroupCount = sgroupCount;
     molecule->bondLists = bondLists;
     molecule->bondListSizes = bondListSizes;
     molecule->contains = contains;
@@ -578,6 +752,31 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
 
             boundIdx++;
             hydrogen++;
+        }
+    }
+
+
+
+    molecule->sgroupCount = template->sgroupCount;
+    molecule->sgroups = NULL;
+
+    if(molecule->sgroups != NULL)
+    {
+        molecule->sgroups = (SGroup *) alloc_memory(&memory, template->sgroupCount * sizeof(SGroup));
+
+        for(int i = 0; i < molecule->sgroupCount; i++)
+        {
+            molecule->sgroups[i].type = template->sgroups[i].type;
+            molecule->sgroups[i].subtype = template->sgroups[i].subtype;
+            molecule->sgroups[i].connectivity = template->sgroups[i].connectivity;
+
+            molecule->sgroups[i].atomCount = template->sgroups[i].atomCount;
+            molecule->sgroups[i].atoms = (AtomIdx *) alloc_memory(&memory, template->sgroups[i].atomCount * sizeof(AtomIdx));
+            memcpy(molecule->sgroups[i].atoms, template->sgroups[i].atoms, template->sgroups[i].atomCount * sizeof(AtomIdx));
+
+            molecule->sgroups[i].bondCount = template->sgroups[i].bondCount;
+            molecule->sgroups[i].bonds = (AtomIdx (*)[2]) alloc_memory(&memory, template->sgroups[i].bondCount * 2 * sizeof(AtomIdx));
+            memcpy(molecule->sgroups[i].bonds, template->sgroups[i].bonds, template->sgroups[i].bondCount * 2 * sizeof(AtomIdx));
         }
     }
 
@@ -769,6 +968,27 @@ static inline bool molecule_has_hydrogen_radical(const uint8_t *restrict data)
         int idx = value & 0xFFF;
 
         if(data[offset] >> 4 == RECORD_RADICAL && idx >= heavyAtomCount)
+            return true;
+    }
+
+    return false;
+}
+
+
+static inline bool molecule_has_sgroup(const uint8_t *restrict data)
+{
+    int xAtomCount = data[0] << 8 | data[1];
+    int hAtomCount = data[4] << 8 | data[5];
+    int xBondCount = data[6] << 8 | data[7];
+    int specialCount = data[8] << 8 | data[9];
+
+    int base = 10 + xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
+
+    for(int i = 0; i < specialCount; i++)
+    {
+        int offset = base + i * SPECIAL_BLOCK_SIZE;
+
+        if(data[offset] >> 4 == RECORD_SGROUP_COUNT)
             return true;
     }
 

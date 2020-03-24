@@ -28,6 +28,8 @@ import org.openscience.cdk.interfaces.IStereoElement;
 import org.openscience.cdk.interfaces.ITetrahedralChirality.Stereo;
 import org.openscience.cdk.io.MDLV2000Writer.SPIN_MULTIPLICITY;
 import org.openscience.cdk.isomorphism.matchers.QueryBond;
+import org.openscience.cdk.sgroup.Sgroup;
+import org.openscience.cdk.sgroup.SgroupKey;
 import org.openscience.cdk.stereo.DoubleBondStereochemistry;
 import org.openscience.cdk.stereo.ExtendedCisTrans;
 import org.openscience.cdk.stereo.ExtendedTetrahedral;
@@ -35,9 +37,13 @@ import org.openscience.cdk.stereo.Stereocenters;
 import org.openscience.cdk.stereo.Stereocenters.Type;
 import org.openscience.cdk.stereo.TetrahedralChirality;
 import cz.iocb.elchem.molecule.BinaryMolecule.SpecialRecordType;
+import cz.iocb.elchem.molecule.BinaryMolecule.VariableLengthRecordType;
 import cz.iocb.elchem.molecule.Molecule.AtomType;
 import cz.iocb.elchem.molecule.Molecule.BondStereo;
 import cz.iocb.elchem.molecule.Molecule.BondType;
+import cz.iocb.elchem.molecule.Molecule.SgroupConnectivity;
+import cz.iocb.elchem.molecule.Molecule.SgroupSubtype;
+import cz.iocb.elchem.molecule.Molecule.SgroupType;
 import cz.iocb.elchem.molecule.Molecule.TetrahedralStereo;
 
 
@@ -46,7 +52,7 @@ public class BinaryMoleculeBuilder
 {
     public static String STEREO_PROPERTY = "STEREO";
     public static String IGNORE_STEREO = "IGNORE";
-
+    public static String HYDROGEN_OFFSET = "HYDROGEN_OFFSET";
     private static String BOND_NUMBER = "BOND_NUMBER";
     private static int[] validReorder = { 0x1234, 0x1423, 0x1342, 0x2314, 0x2431, 0x2143, 0x3124, 0x3412, 0x3241,
             0x4213, 0x4321, 0x4132 };
@@ -147,6 +153,7 @@ public class BinaryMoleculeBuilder
         int hAtomCount = 0;
         int xBondCount = 0;
         int specialCount = 0;
+        int sgroupCount = 0;
 
         for(IAtom a : molecule.atoms())
         {
@@ -191,6 +198,16 @@ public class BinaryMoleculeBuilder
         for(int idx = 0; idx < molecule.getBondCount(); idx++)
             if(isDoubleBondStereochemistry(idx) || isExtendedCisTrans(idx))
                 specialCount++;
+
+        List<Sgroup> sgroups = molecule.getProperty(CDKConstants.CTAB_SGROUPS);
+
+        if(sgroups != null)
+            for(Sgroup sgroup : sgroups)
+                if(getSgroupType(sgroup) != SgroupType.NONE)
+                    sgroupCount++;
+
+        if(sgroupCount > 0)
+            specialCount++;
 
 
         int length = 5 * 2 + xAtomCount + 4 * xBondCount + 2 * hAtomCount + 3 * specialCount;
@@ -317,7 +334,8 @@ public class BinaryMoleculeBuilder
 
             if(list.size() == 1)
             {
-                IAtom other = list.get(0).getOther(atom);
+                IBond b = list.get(0);
+                IAtom other = b.getOther(atom);
                 int idx = molecule.indexOf(other);
 
                 if(other.getAtomicNumber() == Molecule.AtomType.H && i > idx
@@ -329,6 +347,7 @@ public class BinaryMoleculeBuilder
                 }
                 else
                 {
+                    b.setProperty(BOND_NUMBER, bondNumber++);
                     bondsCount[i]++;
                     bondsCount[idx]++;
 
@@ -346,6 +365,8 @@ public class BinaryMoleculeBuilder
 
 
         /* write implicit hydrogen bonds */
+        int offset = molecule.getAtomCount();
+
         if(writeImplicitH)
         {
             for(int idx = 0; idx < molecule.getAtomCount(); idx++)
@@ -355,8 +376,11 @@ public class BinaryMoleculeBuilder
                 if(atom.getImplicitHydrogenCount() == null)
                     continue;
 
+                atom.setProperty(HYDROGEN_OFFSET, offset);
+
                 for(int h = 0; h < atom.getImplicitHydrogenCount(); h++)
                 {
+                    offset++;
                     bondsCount[idx]++;
 
                     stream.write(BondType.SINGLE << 4 | idx / 256);
@@ -457,6 +481,78 @@ public class BinaryMoleculeBuilder
                 stream.write(SpecialRecordType.BOND_STEREO << 4 | index / 256);
                 stream.write(index % 256);
                 stream.write(flag);
+            }
+        }
+
+
+        /* write S-group */
+        if(sgroups != null)
+        {
+            stream.write(SpecialRecordType.SGROUP_COUNT << 4 | sgroupCount / 256);
+            stream.write(sgroupCount % 256);
+            stream.write(0);
+
+            for(Sgroup sgroup : sgroups)
+            {
+                if(getSgroupType(sgroup) == SgroupType.NONE)
+                    continue;
+
+                int atomCount = sgroup.getAtoms().size();
+                int bondCount = sgroup.getBonds().size();
+
+                if(writeImplicitH)
+                    for(IAtom atom : sgroup.getAtoms())
+                        if(atom.getImplicitHydrogenCount() != null)
+                            atomCount += atom.getImplicitHydrogenCount();
+
+                int size = 12 + 2 * atomCount + 4 * bondCount;
+
+                stream.write(size / (256 * 256 * 256));
+                stream.write(size / (256 * 256) % 256);
+                stream.write(size / 256 % 256);
+                stream.write(size % 256);
+
+                stream.write(VariableLengthRecordType.SGROUP);
+                stream.write(getSgroupType(sgroup));
+                stream.write(getSgroupSubtype(sgroup));
+                stream.write(getSgroupConnectivity(sgroup));
+
+                stream.write(atomCount / 256);
+                stream.write(atomCount % 256);
+                stream.write(bondCount / 256);
+                stream.write(bondCount % 256);
+
+                for(IAtom atom : sgroup.getAtoms())
+                {
+                    int index = molecule.indexOf(atom);
+
+                    stream.write(index / 256);
+                    stream.write(index % 256);
+
+                    if(writeImplicitH)
+                    {
+                        if(atom.getImplicitHydrogenCount() != null)
+                        {
+                            int base = atom.getProperty(HYDROGEN_OFFSET);
+
+                            for(int h = 0; h < atom.getImplicitHydrogenCount(); h++)
+                            {
+                                stream.write((base + h) / 256);
+                                stream.write((base + h) % 256);
+                            }
+                        }
+                    }
+                }
+
+                for(IBond bond : sgroup.getBonds())
+                {
+                    for(IAtom atom : bond.atoms())
+                    {
+                        int index = molecule.indexOf(atom);
+                        stream.write(index / 256);
+                        stream.write(index % 256);
+                    }
+                }
             }
         }
 
@@ -946,5 +1042,107 @@ public class BinaryMoleculeBuilder
             return conformation == IStereoElement.TOGETHER ? BondStereo.OPPOSITE : BondStereo.TOGETHER;
         else
             return conformation == IStereoElement.TOGETHER ? BondStereo.TOGETHER : BondStereo.OPPOSITE;
+    }
+
+
+    private static byte getSgroupType(Sgroup sgroup)
+    {
+        switch(sgroup.getType())
+        {
+            case CtabStructureRepeatUnit:
+                return SgroupType.SRU;
+
+            case CtabModified:
+                return SgroupType.MOD;
+
+            case CtabMonomer:
+                return SgroupType.MON;
+
+            case CtabCopolymer:
+                return SgroupType.COP;
+
+            case CtabGeneric:
+                return SgroupType.GEN;
+
+
+            case CtabAnyPolymer:
+                return SgroupType.ANY;
+
+            case CtabCrossLink:
+                return SgroupType.CRO;
+
+            case CtabMer:
+                return SgroupType.MER;
+
+            case CtabGraft:
+                return SgroupType.GRA;
+
+
+            case CtabComponent:
+                return SgroupType.COM;
+
+            case CtabFormulation:
+                return SgroupType.FOR;
+
+            case CtabMixture:
+                return SgroupType.MIX;
+
+            default:
+                return SgroupType.NONE;
+        }
+    }
+
+
+    private static byte getSgroupSubtype(Sgroup sgroup)
+    {
+        if(sgroup == null)
+            return SgroupSubtype.NONE;
+
+        String subtype = sgroup.getValue(SgroupKey.CtabSubType);
+
+        if(subtype == null)
+            return SgroupSubtype.NONE;
+
+        switch(subtype)
+        {
+            case "ALT":
+                return SgroupSubtype.ALT;
+
+            case "RAN":
+                return SgroupSubtype.RAN;
+
+            case "BLO":
+                return SgroupSubtype.BLO;
+
+            default:
+                return SgroupSubtype.UNKNOWN;
+        }
+    }
+
+
+    private static byte getSgroupConnectivity(Sgroup sgroup)
+    {
+        if(sgroup == null)
+            return SgroupConnectivity.NONE;
+
+        String connectivity = sgroup.getValue(SgroupKey.CtabConnectivity);
+
+        if(connectivity == null)
+            return SgroupConnectivity.NONE;
+
+        switch(connectivity)
+        {
+            case "HH":
+                return SgroupConnectivity.HH;
+
+            case "HT":
+                return SgroupConnectivity.HT;
+
+            case "EU":
+                return SgroupConnectivity.EU;
+
+            default:
+                return SgroupConnectivity.UNKNOWN;
+        }
     }
 }
