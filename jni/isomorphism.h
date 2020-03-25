@@ -354,6 +354,19 @@ static inline bool vf2state_atom_matches(const VF2State *restrict vf2state, Atom
     int8_t queryAtomNumber = molecule_get_atom_number(vf2state->query, queryAtom);
     int8_t targetAtomNumber = molecule_get_atom_number(vf2state->target, targetAtom);
 
+
+    if(unlikely(queryAtomNumber == UNKNOWN_ATOM_NUMBER && targetAtomNumber == UNKNOWN_ATOM_NUMBER))
+    {
+        AtomLabel *queryLabel = molecule_get_atom_label(vf2state->query, queryAtom);
+        AtomLabel *targetLabel = molecule_get_atom_label(vf2state->target, targetAtom);
+
+        if(queryLabel->length != targetLabel->length)
+            return false;
+
+        return memcmp(queryLabel->label, targetLabel->label, queryLabel->length) == 0;
+    }
+
+
     if(vf2state->searchMode == SEARCH_EXACT)
         return queryAtomNumber == targetAtomNumber;
     else if(queryAtomNumber == UNKNOWN_ATOM_NUMBER || targetAtomNumber == UNKNOWN_ATOM_NUMBER)

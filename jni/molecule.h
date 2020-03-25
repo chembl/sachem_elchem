@@ -53,7 +53,8 @@ enum SpecialRecordType
 
 enum VariableLengthRecordType
 {
-    VAR_RECORD_SGROUP = 1
+    VAR_RECORD_SGROUP = 1,
+    VAR_RECORD_ATOM_LABEL = 2
 };
 
 
@@ -135,6 +136,15 @@ SGroup;
 
 typedef struct
 {
+    AtomIdx atom;
+    int32_t length;
+    uint8_t *label;
+}
+AtomLabel;
+
+
+typedef struct
+{
     int atomCount;
     int bondCount;
 
@@ -145,6 +155,7 @@ typedef struct
     int hydrogenBondCount;
 
     int sgroupCount;
+    int labelCount;
 
     bool extended;
     bool hasPseudoAtom;
@@ -159,6 +170,7 @@ typedef struct
     uint8_t *restrict bondStereo;
     uint8_t *restrict restH;
     SGroup *restrict sgroups;
+    AtomLabel *restrict labels;
 
     BondIdx *restrict bondMatrix;
     AtomIdx *restrict bondLists;
@@ -205,38 +217,46 @@ static inline size_t molecule_mem_size(const uint8_t *restrict data, const uint8
         memsize += align_size(sizeof(bool) * hAtomCount);
 
 
+    data += 10;
+
+    int labelCount = 0;
+    int sgroupCount = 0;
+
+    for(int i = 0; i < xAtomCount; i++)
+        if((int8_t) data[i] == UNKNOWN_ATOM_NUMBER)
+            labelCount++;
+
+    data += xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
+
     if(withSGroup)
-    {
-        data += 10 + xAtomCount + xBondCount * BOND_BLOCK_SIZE + hAtomCount * HBOND_BLOCK_SIZE;
-
-        int sgroupCount = 0;
-
         for(int i = 0; i < specialCount; i++)
-        {
-            if(data[0] >> 4 == RECORD_SGROUP_COUNT)
-                sgroupCount = (data[0] * 256 | data[1]) & 0xFFF;
+            if(data[i * SPECIAL_BLOCK_SIZE] >> 4 == RECORD_SGROUP_COUNT)
+                sgroupCount = (data[i * SPECIAL_BLOCK_SIZE + 0] * 256 | data[i * SPECIAL_BLOCK_SIZE + 1]) & 0xFFF;
 
-            data += SPECIAL_BLOCK_SIZE;
-        }
+    data += specialCount * SPECIAL_BLOCK_SIZE;
 
 
-        memsize += align_size(sgroupCount * sizeof(SGroup));
+    memsize += align_size(labelCount * sizeof(AtomLabel));
 
-        for(int i = 0; i < sgroupCount; i++)
-        {
-            int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+    for(int i = 0; i < labelCount; i++)
+    {
+        int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+        data += size;
+        memsize += align_size(size - 7);
+    }
 
-            if(data[4] == VAR_RECORD_SGROUP)
-            {
-                int atomLength = data[8] * 256 | data[9];
-                int bondLength = data[10] * 256 | data[11];
 
-                memsize += align_size(atomLength * sizeof(AtomIdx));
-                memsize += align_size(bondLength * 2 * sizeof(AtomIdx));
-            }
+    memsize += align_size(sgroupCount * sizeof(SGroup));
 
-            data += size;
-        }
+    for(int i = 0; i < sgroupCount; i++)
+    {
+        int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+        int atomLength = data[8] * 256 | data[9];
+        int bondLength = data[10] * 256 | data[11];
+        data += size;
+
+        memsize += align_size(atomLength * sizeof(AtomIdx));
+        memsize += align_size(bondLength * 2 * sizeof(AtomIdx));
     }
 
 
@@ -266,15 +286,19 @@ static inline size_t molecule_extended_mem_size(const Molecule *restrict molecul
     memsize += align_size(bondCount * 2 * sizeof(AtomIdx));
     memsize += align_size(atomCount * atomCount * sizeof(BondIdx));
 
-    if(molecule->sgroups != NULL)
-    {
-        memsize += align_size(molecule->sgroupCount * sizeof(SGroup));
 
-        for(int i = 0; i < molecule->sgroupCount; i++)
-        {
-            memsize += align_size(molecule->sgroups[i].atomCount * sizeof(AtomIdx));
-            memsize += align_size(molecule->sgroups[i].bondCount * 2 * sizeof(AtomIdx));
-        }
+    memsize += align_size(molecule->labelCount * sizeof(AtomLabel));
+
+    for(int i = 0; i < molecule->labelCount; i++)
+        memsize += align_size(molecule->labels[i].length);
+
+
+    memsize += align_size(molecule->sgroupCount * sizeof(SGroup));
+
+    for(int i = 0; i < molecule->sgroupCount; i++)
+    {
+        memsize += align_size(molecule->sgroups[i].atomCount * sizeof(AtomIdx));
+        memsize += align_size(molecule->sgroups[i].bondCount * 2 * sizeof(AtomIdx));
     }
 
     return memsize;
@@ -313,6 +337,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     int atomCount = xAtomCount + cAtomCount;
     int bondCount = xBondCount;
     int sgroupCount = 0;
+    int labelCount = 0;
 
 
     if(extended)
@@ -358,8 +383,12 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
         atomNumbers[i] = H_ATOM_NUMBER;
 
     for(int i = 0; i < xAtomCount; i++)
-        if(atomNumbers[i] < 0)
+    {
+        if(atomNumbers[i] == UNKNOWN_ATOM_NUMBER)
+            labelCount++;
+        else if(atomNumbers[i] < 0)
             hasPseudoAtom = true;
+    }
 
     data += xAtomCount;
 
@@ -535,7 +564,8 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
                 break;
 
             case RECORD_SGROUP_COUNT:
-                sgroupCount = idx;
+                if(withSGroup)
+                    sgroupCount = idx;
                 break;
         }
     }
@@ -543,51 +573,54 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     data += specialCount * SPECIAL_BLOCK_SIZE;
 
 
+    AtomLabel *labels = NULL;
+
+    if(labelCount > 0)
+        labels = (AtomLabel *) alloc_memory_zero(&memory, labelCount * sizeof(AtomLabel));
+
+    for(int i = 0; i < labelCount; i++)
+    {
+        int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+
+        labels[i].atom = data[5] * 256 | data[6];
+        labels[i].length = size - 7;
+        labels[i].label = (uint8_t *) alloc_memory_zero(&memory, size - 7);
+        memcpy(labels[i].label, data + 7, size - 7);
+        data += size;
+    }
+
+
     SGroup *sgroups = NULL;
 
-    if(withSGroup && sgroupCount > 0)
+    if(sgroupCount > 0)
     {
         sgroups = (SGroup *) alloc_memory_zero(&memory, sgroupCount * sizeof(SGroup));
 
-        int idx = 0;
-
         for(int i = 0; i < sgroupCount; i++)
         {
-            int size = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
-            data += 4;
+            sgroups[i].type = data[5];
+            sgroups[i].subtype = data[6];
+            sgroups[i].connectivity = data[7];
 
-            if(data[0] == VAR_RECORD_SGROUP)
+            int atomLength = data[8] * 256 | data[9];
+            int bondLength = data[10] * 256 | data[11];
+
+            data += 12;
+
+            sgroups[i].atoms = (AtomIdx *) alloc_memory_zero(&memory, atomLength * sizeof(AtomIdx));
+            sgroups[i].bonds = (AtomIdx (*)[2]) alloc_memory_zero(&memory, bondLength * 2 * sizeof(AtomIdx));
+
+            for(int a = 0; a < atomLength; a++)
             {
-                sgroups[idx].type = data[1];
-                sgroups[idx].subtype = data[2];
-                sgroups[idx].connectivity = data[3];
-
-                int atomLength = data[4] * 256 | data[5];
-                int bondLength = data[6] * 256 | data[7];
-
-                data += 8;
-
-                sgroups[idx].atoms = (AtomIdx *) alloc_memory_zero(&memory, atomLength * sizeof(AtomIdx));
-                sgroups[idx].bonds = (AtomIdx (*)[2]) alloc_memory_zero(&memory, bondLength * 2 * sizeof(AtomIdx));
-
-                for(int a = 0; a < atomLength; a++)
-                {
-                    sgroups[idx].atoms[a] = data[0] * 256 | data[1];
-                    data += 2;
-                }
-
-                for(int b = 0; b < bondLength; b++)
-                {
-                    sgroups[idx].bonds[b][0] = data[0] * 256 | data[1];
-                    sgroups[idx].bonds[b][1] = data[2] * 256 | data[3];
-                    data += 4;
-                }
-
-                idx++;
+                sgroups[i].atoms[a] = data[0] * 256 | data[1];
+                data += 2;
             }
-            else
+
+            for(int b = 0; b < bondLength; b++)
             {
-                data += size;
+                sgroups[i].bonds[b][0] = data[0] * 256 | data[1];
+                sgroups[i].bonds[b][1] = data[2] * 256 | data[3];
+                data += 4;
             }
         }
     }
@@ -601,6 +634,8 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     molecule->heavyBondCount = heavyBondCount;
     molecule->hydrogenAtomCount = hydrogenAtomCount;
     molecule->hydrogenBondCount = hydrogenBondCount;
+    molecule->sgroupCount = sgroupCount;
+    molecule->labelCount = labelCount;
     molecule->extended = extended;
     molecule->hasPseudoAtom = hasPseudoAtom;
     molecule->atomNumbers = atomNumbers;
@@ -613,7 +648,7 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     molecule->bondStereo = bondStereo;
     molecule->restH = restH;
     molecule->sgroups = sgroups;
-    molecule->sgroupCount = sgroupCount;
+    molecule->labels = labels;
     molecule->bondLists = bondLists;
     molecule->bondListSizes = bondListSizes;
     molecule->contains = contains;
@@ -756,11 +791,27 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     }
 
 
+    molecule->labelCount = template->labelCount;
+    molecule->labels = NULL;
+
+    if(template->labels != NULL)
+    {
+        molecule->labels = (AtomLabel *) alloc_memory(&memory, template->labelCount * sizeof(AtomLabel));
+
+        for(int i = 0; i < molecule->labelCount; i++)
+        {
+            molecule->labels[i].atom = template->labels[i].atom;
+            molecule->labels[i].length = template->labels[i].length;
+            molecule->labels[i].label = (uint8_t *) alloc_memory(&memory, template->labels[i].length);
+            memcpy(molecule->labels[i].label, template->labels[i].label, template->labels[i].length);
+        }
+    }
+
 
     molecule->sgroupCount = template->sgroupCount;
     molecule->sgroups = NULL;
 
-    if(molecule->sgroups != NULL)
+    if(template->sgroups != NULL)
     {
         molecule->sgroups = (SGroup *) alloc_memory(&memory, template->sgroupCount * sizeof(SGroup));
 
@@ -1027,6 +1078,16 @@ static inline bool molecule_is_pseudo_atom(const Molecule *restrict molecule, At
 static inline int8_t molecule_get_atom_number(const Molecule *restrict molecule, AtomIdx atom)
 {
     return molecule->atomNumbers[atom];
+}
+
+
+static inline AtomLabel *molecule_get_atom_label(const Molecule *restrict molecule, AtomIdx atom)
+{
+    for(int i = 0; i < molecule->labelCount; i++)
+        if(molecule->labels[i].atom == atom)
+            return molecule->labels + i;
+
+    return NULL;
 }
 
 

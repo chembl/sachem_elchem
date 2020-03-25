@@ -210,7 +210,9 @@ public class Isomorphism
             byte queryNumber = query.getAtomNumber(queryAtom);
             byte targetNumber = target.getAtomNumber(targetAtom);
 
-            if(searchMode == SearchMode.EXACT)
+            if(queryNumber == AtomType.UNKNOWN && targetNumber == AtomType.UNKNOWN)
+                return Arrays.equals(query.getAtomLabel(queryAtom).label, target.getAtomLabel(targetAtom).label);
+            else if(searchMode == SearchMode.EXACT)
                 return queryNumber == targetNumber;
             else if(queryNumber == AtomType.UNKNOWN || targetNumber == AtomType.UNKNOWN)
                 return false;
@@ -730,7 +732,7 @@ public class Isomorphism
         }
 
 
-        private int sgroup_get_query_atom(int atom)
+        private int getSGroupQueryAtom(int atom)
         {
             if(atom >= query.getAtomCount())
                 return UNDEFINED_CORE;
@@ -739,7 +741,7 @@ public class Isomorphism
         }
 
 
-        private int sgroup_get_target_atom(int atom)
+        private int getSGroupTargetAtom(int atom)
         {
             if(atom >= target.getAtomCount())
                 return UNDEFINED_CORE;
@@ -779,7 +781,7 @@ public class Isomorphism
                 boolean found = false;
 
                 for(int j = 0; j < targetGroup.atoms.length; j++)
-                    if(sgroup_get_query_atom(queryGroup.atoms[i]) == sgroup_get_target_atom(targetGroup.atoms[j]))
+                    if(getSGroupQueryAtom(queryGroup.atoms[i]) == getSGroupTargetAtom(targetGroup.atoms[j]))
                         found = true;
 
                 if(!found)
@@ -792,11 +794,11 @@ public class Isomorphism
 
                 for(int j = 0; j < targetGroup.bonds.length; j++)
                 {
-                    int q0 = sgroup_get_query_atom(queryGroup.bonds[i][0]);
-                    int q1 = sgroup_get_query_atom(queryGroup.bonds[i][1]);
+                    int q0 = getSGroupQueryAtom(queryGroup.bonds[i][0]);
+                    int q1 = getSGroupQueryAtom(queryGroup.bonds[i][1]);
 
-                    int t0 = sgroup_get_target_atom(targetGroup.bonds[j][0]);
-                    int t1 = sgroup_get_target_atom(targetGroup.bonds[j][1]);
+                    int t0 = getSGroupTargetAtom(targetGroup.bonds[j][0]);
+                    int t1 = getSGroupTargetAtom(targetGroup.bonds[j][1]);
 
                     if(q0 == t0 && q1 == t1 || q0 == t1 && q1 == t0)
                         found = true;
@@ -820,7 +822,7 @@ public class Isomorphism
             /*
             The goal has been reached, so the query has been mapped to target,
             therfore query is a substructure of the target.
-            
+
             However, if this was an R-group query, the result could still be
             rejected.If the RestH property is true for some atom with an R-group
             linked, then the R-group may only be substituted with a member

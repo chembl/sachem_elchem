@@ -15,6 +15,13 @@ public abstract class Molecule
     }
 
 
+    public static class AtomLabel
+    {
+        int atom;
+        byte[] label;
+    }
+
+
     public static abstract class AtomType
     {
         public static final byte H = 1;
@@ -138,6 +145,8 @@ public abstract class Molecule
     public abstract boolean hasRestHydrogenFlags();
 
     public abstract byte getAtomNumber(int atom);
+
+    public abstract AtomLabel getAtomLabel(int atom);
 
     public abstract byte getAtomHydrogenCount(int atom);
 

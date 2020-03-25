@@ -15,6 +15,8 @@
 package cz.iocb.elchem.molecule;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedList;
 import java.util.List;
 import org.openscience.cdk.CDKConstants;
 import org.openscience.cdk.exception.CDKException;
@@ -230,6 +232,8 @@ public class BinaryMoleculeBuilder
 
 
         /* write atoms */
+        List<IAtom> unknownAtoms = new LinkedList<IAtom>();
+
         for(int i = 0; i < xAtomCount; i++)
         {
             IAtom atom = molecule.getAtom(i);
@@ -237,29 +241,35 @@ public class BinaryMoleculeBuilder
             if(atom instanceof IPseudoAtom)
             {
                 String label = ((IPseudoAtom) atom).getLabel();
+                int type;
 
                 if(label.length() == 1 && label.charAt(0) >= 'A' && label.charAt(0) <= 'Z')
-                    stream.write(-label.charAt(0));
+                    type = -label.charAt(0);
                 else if(label.matches("R[1-9#]?") || label.equals("*"))
-                    stream.write(AtomType.R);
+                    type = AtomType.R;
                 else if(label.equals("G*") || label.equals("G\\"))
-                    stream.write(AtomType.G);
+                    type = AtomType.G;
                 else if(label.equals("Ps"))
-                    stream.write(AtomType.POSITRONIUM);
+                    type = AtomType.POSITRONIUM;
                 else if(label.equals("e"))
-                    stream.write(AtomType.ELECTRON);
+                    type = AtomType.ELECTRON;
                 else if(label.equals("hv"))
-                    stream.write(AtomType.PHOTON);
+                    type = AtomType.PHOTON;
                 else if(label.equals("Mu"))
-                    stream.write(AtomType.MUONIUM);
+                    type = AtomType.MUONIUM;
                 else if(label.equals("ACP"))
-                    stream.write(AtomType.ACP);
+                    type = AtomType.ACP;
                 else if(label.equals("Enz"))
-                    stream.write(AtomType.ENZYME);
+                    type = AtomType.ENZYME;
                 else if(label.equals(""))
-                    stream.write(AtomType.EMPTY);
+                    type = AtomType.EMPTY;
                 else
-                    stream.write(AtomType.UNKNOWN);
+                    type = AtomType.UNKNOWN;
+
+                stream.write(type);
+
+                if(type == AtomType.UNKNOWN)
+                    unknownAtoms.add(atom);
             }
             else
             {
@@ -485,13 +495,41 @@ public class BinaryMoleculeBuilder
         }
 
 
-        /* write S-group */
+        /* write SGroup count */
         if(sgroups != null)
         {
             stream.write(SpecialRecordType.SGROUP_COUNT << 4 | sgroupCount / 256);
             stream.write(sgroupCount % 256);
             stream.write(0);
+        }
 
+
+        /* write pseudo atom labels */
+        for(IAtom atom : unknownAtoms)
+        {
+            String label = ((IPseudoAtom) atom).getLabel();
+
+            int idx = molecule.indexOf(atom);
+            byte[] bytes = label.getBytes(StandardCharsets.UTF_8);
+            int size = 7 + bytes.length;
+
+            stream.write(size / (256 * 256 * 256));
+            stream.write(size / (256 * 256) % 256);
+            stream.write(size / 256 % 256);
+            stream.write(size % 256);
+
+            stream.write(VariableLengthRecordType.ATOM_LABEL);
+            stream.write(idx / 256);
+            stream.write(idx % 256);
+
+            for(byte b : bytes)
+                stream.write(b);
+        }
+
+
+        /* write SGroups */
+        if(sgroups != null)
+        {
             for(Sgroup sgroup : sgroups)
             {
                 if(getSgroupType(sgroup) == SgroupType.NONE)
@@ -557,10 +595,7 @@ public class BinaryMoleculeBuilder
         }
 
 
-        byte[] array = stream.toByteArray();
-        assert array.length == length;
-
-        return array;
+        return stream.toByteArray();
     }
 
 

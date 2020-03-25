@@ -20,6 +20,7 @@ public final class BinaryMolecule extends Molecule
     public static abstract class VariableLengthRecordType
     {
         public static final byte SGROUP = 1;
+        public static final byte ATOM_LABEL = 2;
     }
 
 
@@ -46,6 +47,7 @@ public final class BinaryMolecule extends Molecule
     private final byte[] bondStereo;
     private final boolean[] restH;
     private final SGroup[] sgroups;
+    private final AtomLabel[] labels;
 
 
     public BinaryMolecule(byte[] data, boolean[] restH, boolean extended, boolean withCharges, boolean withIsotopes,
@@ -70,6 +72,7 @@ public final class BinaryMolecule extends Molecule
         int atomCount = heavyAtomCount;
         int bondCount = xBondCount;
         int sgroupCount = 0;
+        int labelCount = 0;
 
         if(extended)
         {
@@ -101,8 +104,12 @@ public final class BinaryMolecule extends Molecule
         boolean hasPseudoAtom = false;
 
         for(int i = 0; i < xAtomCount; i++)
+        {
+            if(atomNumbers[i] == AtomType.UNKNOWN)
+                labelCount++;
             if(atomNumbers[i] < 0)
                 hasPseudoAtom = true;
+        }
 
 
         for(int i = 0; i < atomCount * atomCount; i++)
@@ -268,7 +275,8 @@ public final class BinaryMolecule extends Molecule
                     break;
 
                 case SpecialRecordType.SGROUP_COUNT:
-                    sgroupCount = value;
+                    if(withSGroup)
+                        sgroupCount = idx;
                     break;
             }
         }
@@ -276,51 +284,68 @@ public final class BinaryMolecule extends Molecule
 
         possition += specialCount * SPECIAL_BLOCK_SIZE;
 
+
+        AtomLabel[] labels = null;
+
+        if(labelCount > 0)
+            labels = new AtomLabel[labelCount];
+
+        for(int i = 0; i < labelCount; i++)
+        {
+            int size = Byte.toUnsignedInt(data[possition + 0]) << 24 | Byte.toUnsignedInt(data[possition + 1]) << 16
+                    | Byte.toUnsignedInt(data[possition + 2]) << 8 | Byte.toUnsignedInt(data[possition + 3]);
+
+            labels[i] = new AtomLabel();
+            labels[i].atom = Byte.toUnsignedInt(data[possition + 5]) * 256 | Byte.toUnsignedInt(data[possition + 6]);
+            labels[i].label = new byte[size - 7];
+
+            for(int j = 0; j < size - 7; j++)
+                labels[i].label[j] = data[possition + 7 + j];
+
+            possition += size;
+        }
+
+
         SGroup[] sgroups = null;
 
-        if(withSGroup && sgroupCount > 0)
+        if(sgroupCount > 0)
         {
             sgroups = new SGroup[sgroupCount];
 
-            int idx = 0;
-
             for(int i = 0; i < sgroupCount; i++)
             {
-                int offset = possition;
+                sgroups[i] = new SGroup();
 
-                int size = Byte.toUnsignedInt(data[offset++]) * 256 * 256 * 256
-                        | Byte.toUnsignedInt(data[offset++]) * 256 * 256 | Byte.toUnsignedInt(data[offset++]) * 256
-                        | Byte.toUnsignedInt(data[offset++]);
+                sgroups[i].type = data[possition + 5];
+                sgroups[i].subtype = data[possition + 6];
+                sgroups[i].connectivity = data[possition + 7];
 
-                if(data[offset++] == VariableLengthRecordType.SGROUP)
+                int atomLength = Byte.toUnsignedInt(data[possition + 8]) * 256
+                        | Byte.toUnsignedInt(data[possition + 9]);
+                int bondLength = Byte.toUnsignedInt(data[possition + 10]) * 256
+                        | Byte.toUnsignedInt(data[possition + 11]);
+
+                possition += 12;
+
+                sgroups[i].atoms = new int[atomLength];
+                sgroups[i].bonds = new int[bondLength][];
+
+                for(int a = 0; a < atomLength; a++)
                 {
-                    SGroup sgroup = new SGroup();
-                    sgroups[idx++] = sgroup;
-
-                    sgroup.type = data[offset++];
-                    sgroup.subtype = data[offset++];
-                    sgroup.connectivity = data[offset++];
-
-                    int atomLength = Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]);
-                    int bondLength = Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]);
-
-                    sgroup.atoms = new int[atomLength];
-                    sgroup.bonds = new int[bondLength][];
-
-                    for(int a = 0; a < atomLength; a++)
-                        sgroup.atoms[a] = Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]);
-
-                    offset += 2 * atomLength;
-
-                    for(int b = 0; b < bondLength; b++)
-                    {
-                        sgroup.bonds[b] = new int[] {
-                                Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]),
-                                Byte.toUnsignedInt(data[offset++]) * 256 | Byte.toUnsignedInt(data[offset++]) };
-                    }
+                    sgroups[i].atoms[a] = Byte.toUnsignedInt(data[possition + 0]) * 256
+                            | Byte.toUnsignedInt(data[possition + 1]);
+                    possition += 2;
                 }
 
-                possition += size;
+                for(int b = 0; b < bondLength; b++)
+                {
+                    sgroups[i].bonds[b] = new int[2];
+                    sgroups[i].bonds[b][0] = Byte.toUnsignedInt(data[possition + 0]) * 256
+                            | Byte.toUnsignedInt(data[possition + 1]);
+                    sgroups[i].bonds[b][1] = Byte.toUnsignedInt(data[possition + 2]) * 256
+                            | Byte.toUnsignedInt(data[possition + 3]);
+                    possition += 4;
+                }
             }
         }
 
@@ -343,6 +368,7 @@ public final class BinaryMolecule extends Molecule
         this.bondMatrix = bondMatrix;
         this.bondLists = new int[atomCount][];
         this.sgroups = sgroups;
+        this.labels = labels;
 
         for(int i = 0; i < atomCount; i++)
         {
@@ -408,6 +434,17 @@ public final class BinaryMolecule extends Molecule
     public final byte getAtomNumber(int atom)
     {
         return atomNumbers[atom];
+    }
+
+
+    @Override
+    public AtomLabel getAtomLabel(int atom)
+    {
+        for(AtomLabel label : labels)
+            if(label.atom == atom)
+                return label;
+
+        return null;
     }
 
 
