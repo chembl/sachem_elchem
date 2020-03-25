@@ -55,6 +55,7 @@ public class BinaryMoleculeBuilder
     public static String STEREO_PROPERTY = "STEREO";
     public static String IGNORE_STEREO = "IGNORE";
     public static String HYDROGEN_OFFSET = "HYDROGEN_OFFSET";
+    private static int maxID = 4095;
     private static String BOND_NUMBER = "BOND_NUMBER";
     private static int[] validReorder = { 0x1234, 0x1423, 0x1342, 0x2314, 0x2431, 0x2143, 0x3124, 0x3412, 0x3241,
             0x4213, 0x4321, 0x4132 };
@@ -210,6 +211,10 @@ public class BinaryMoleculeBuilder
 
         if(sgroupCount > 0)
             specialCount++;
+
+
+        if(xAtomCount + cAtomCount + hAtomCount > maxID || xBondCount + hAtomCount > maxID || specialCount > maxID)
+            throw new CDKException("molecule is too big");
 
 
         int length = 5 * 2 + xAtomCount + 4 * xBondCount + 2 * hAtomCount + 3 * specialCount;
@@ -498,6 +503,9 @@ public class BinaryMoleculeBuilder
         /* write SGroup count */
         if(sgroups != null)
         {
+            if(sgroupCount > maxID)
+                throw new CDKException("molecule is too big");
+
             stream.write(SpecialRecordType.SGROUP_COUNT << 4 | sgroupCount / 256);
             stream.write(sgroupCount % 256);
             stream.write(0);
