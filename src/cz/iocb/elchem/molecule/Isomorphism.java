@@ -298,7 +298,7 @@ public class Isomorphism
                 if(query.getAtomHydrogenCount(queryIdx) != target.getAtomHydrogenCount(targetIdx))
                     return false;
             }
-            else if(!query.hasPseudoAtom() && !target.hasPseudoAtom())
+            else
             {
                 if(query.getAtomHydrogenCount(queryIdx) > target.getAtomHydrogenCount(targetIdx))
                     return false;

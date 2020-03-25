@@ -454,7 +454,7 @@ static inline bool vf2state_is_feasible_pair(const VF2State *restrict vf2state)
                 molecule_get_hydrogen_count(vf2state->target, vf2state->targetIdx)))
             return false;
     }
-    else if(!vf2state->query->hasPseudoAtom && !vf2state->target->hasPseudoAtom)
+    else
     {
         if(unlikely(molecule_get_hydrogen_count(vf2state->query, vf2state->queryIdx) >
                 molecule_get_hydrogen_count(vf2state->target, vf2state->targetIdx)))

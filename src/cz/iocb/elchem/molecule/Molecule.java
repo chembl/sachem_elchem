@@ -140,8 +140,6 @@ public abstract class Molecule
 
     public abstract int getBondCount();
 
-    public abstract boolean hasPseudoAtom();
-
     public abstract boolean hasRestHydrogenFlags();
 
     public abstract byte getAtomNumber(int atom);

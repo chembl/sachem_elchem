@@ -38,7 +38,6 @@ public final class BinaryMolecule extends Molecule
     private final int[][] bondLists;
     private final int[] contains;
     private final int[] bondMatrix;
-    private final boolean hasPseudoAtom;
     private final byte[] atomHydrogens;
     private final byte[] atomCharges;
     private final byte[] atomMasses;
@@ -101,15 +100,9 @@ public final class BinaryMolecule extends Molecule
         for(int i = heavyAtomCount; i < atomCount; i++)
             atomNumbers[i] = AtomType.H;
 
-        boolean hasPseudoAtom = false;
-
         for(int i = 0; i < xAtomCount; i++)
-        {
             if(atomNumbers[i] == AtomType.UNKNOWN)
                 labelCount++;
-            if(atomNumbers[i] < 0)
-                hasPseudoAtom = true;
-        }
 
 
         for(int i = 0; i < atomCount * atomCount; i++)
@@ -354,7 +347,6 @@ public final class BinaryMolecule extends Molecule
         this.originalBondCount = originalBondCount;
         this.atomCount = atomCount;
         this.bondCount = bondCount;
-        this.hasPseudoAtom = hasPseudoAtom;
         this.atomNumbers = atomNumbers;
         this.atomHydrogens = atomHydrogens;
         this.atomCharges = atomCharges;
@@ -413,13 +405,6 @@ public final class BinaryMolecule extends Molecule
     public final int getBondCount()
     {
         return bondCount;
-    }
-
-
-    @Override
-    public final boolean hasPseudoAtom()
-    {
-        return hasPseudoAtom;
     }
 
 

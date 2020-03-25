@@ -158,7 +158,6 @@ typedef struct
     int labelCount;
 
     bool extended;
-    bool hasPseudoAtom;
 
     int8_t *restrict atomNumbers;
     uint8_t *restrict atomHydrogens;
@@ -356,8 +355,6 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     }
 
 
-    bool hasPseudoAtom = false;
-
     int8_t *restrict atomNumbers = (int8_t *) alloc_memory(&memory, atomCount);
     uint8_t *restrict atomHydrogens = (uint8_t *) alloc_memory_zero(&memory, atomCount);
     uint8_t *restrict bondTypes = (uint8_t *) alloc_memory(&memory, bondCount);
@@ -383,12 +380,8 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
         atomNumbers[i] = H_ATOM_NUMBER;
 
     for(int i = 0; i < xAtomCount; i++)
-    {
         if(atomNumbers[i] == UNKNOWN_ATOM_NUMBER)
             labelCount++;
-        else if(atomNumbers[i] < 0)
-            hasPseudoAtom = true;
-    }
 
     data += xAtomCount;
 
@@ -637,7 +630,6 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
     molecule->sgroupCount = sgroupCount;
     molecule->labelCount = labelCount;
     molecule->extended = extended;
-    molecule->hasPseudoAtom = hasPseudoAtom;
     molecule->atomNumbers = atomNumbers;
     molecule->atomHydrogens = atomHydrogens;
     molecule->atomCharges = atomCharges;
@@ -669,7 +661,6 @@ static inline Molecule *molecule_extend(void *memory, const Molecule *restrict t
     molecule->hydrogenAtomCount = template->hydrogenAtomCount;
     molecule->hydrogenBondCount = template->hydrogenBondCount;
     molecule->extended = true;
-    molecule->hasPseudoAtom = template->hasPseudoAtom;
 
     if(template->restH != NULL)
     {
