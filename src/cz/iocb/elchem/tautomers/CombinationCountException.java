@@ -13,12 +13,10 @@
  */
 package cz.iocb.elchem.tautomers;
 
-import org.openscience.cdk.exception.CDKException;
-
 
 
 @SuppressWarnings("serial")
-public class CombinationCountException extends CDKException
+public class CombinationCountException extends InChIException
 {
     public CombinationCountException(String message)
     {

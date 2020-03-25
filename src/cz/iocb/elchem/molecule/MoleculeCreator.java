@@ -54,6 +54,7 @@ import org.openscience.cdk.smiles.SmilesParser;
 import org.openscience.cdk.tools.CDKHydrogenAdder;
 import org.openscience.cdk.tools.manipulator.AtomContainerManipulator;
 import org.openscience.cdk.tools.manipulator.AtomTypeManipulator;
+import cz.iocb.elchem.tautomers.InChIException;
 import cz.iocb.elchem.tautomers.InchiTautomerGenerator;
 
 
@@ -107,16 +108,23 @@ public class MoleculeCreator
 
             if(tautomerMode == TautomerMode.INCHI)
             {
-                InchiTautomerGenerator generator = new InchiTautomerGenerator();
-                List<IAtomContainer> tautomers = new ArrayList<IAtomContainer>();
+                try
+                {
+                    InchiTautomerGenerator generator = new InchiTautomerGenerator();
+                    List<IAtomContainer> tautomers = new ArrayList<IAtomContainer>();
 
-                for(IAtomContainer molecule : queries)
-                    tautomers.addAll(generator.getTautomers(molecule));
+                    for(IAtomContainer molecule : queries)
+                        tautomers.addAll(generator.getTautomers(molecule));
 
-                for(IAtomContainer tautomer : tautomers)
-                    tautomer.setAtoms(BinaryMoleculeSort.atomsByFrequency(tautomer));
+                    for(IAtomContainer tautomer : tautomers)
+                        tautomer.setAtoms(BinaryMoleculeSort.atomsByFrequency(tautomer));
 
-                queries = tautomers;
+                    queries = tautomers;
+                }
+                catch(CDKException e)
+                {
+                    throw new InChIException("cannot generate tautomers: " + e.getMessage());
+                }
             }
 
 
