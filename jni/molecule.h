@@ -595,21 +595,21 @@ static inline Molecule *molecule_create(void *memory, const uint8_t *restrict da
             sgroups[i].subtype = data[6];
             sgroups[i].connectivity = data[7];
 
-            int atomLength = data[8] * 256 | data[9];
-            int bondLength = data[10] * 256 | data[11];
+            sgroups[i].atomCount = data[8] * 256 | data[9];
+            sgroups[i].bondCount = data[10] * 256 | data[11];
 
             data += 12;
 
-            sgroups[i].atoms = (AtomIdx *) alloc_memory_zero(&memory, atomLength * sizeof(AtomIdx));
-            sgroups[i].bonds = (AtomIdx (*)[2]) alloc_memory_zero(&memory, bondLength * 2 * sizeof(AtomIdx));
+            sgroups[i].atoms = (AtomIdx *) alloc_memory_zero(&memory, sgroups[i].atomCount * sizeof(AtomIdx));
+            sgroups[i].bonds = (AtomIdx (*)[2]) alloc_memory_zero(&memory, sgroups[i].bondCount * 2 * sizeof(AtomIdx));
 
-            for(int a = 0; a < atomLength; a++)
+            for(int a = 0; a < sgroups[i].atomCount; a++)
             {
                 sgroups[i].atoms[a] = data[0] * 256 | data[1];
                 data += 2;
             }
 
-            for(int b = 0; b < bondLength; b++)
+            for(int b = 0; b < sgroups[i].bondCount; b++)
             {
                 sgroups[i].bonds[b][0] = data[0] * 256 | data[1];
                 sgroups[i].bonds[b][1] = data[2] * 256 | data[3];
