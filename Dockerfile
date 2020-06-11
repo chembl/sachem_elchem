@@ -13,7 +13,14 @@ RUN yum -y install ant
 
 COPY ./ ${WORKDIR}/
 RUN mkdir build
-ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.242.b08-1.el7.x86_64
+ENV JAVA_HOME /usr/share/elasticsearch/jdk
+RUN cd ant-ext
+RUN tar -xvf ant-contrib-0.6-bin.tar.gz
+RUN tar -xvf cpptasks-1.0b5.tar.gz
+ENV CLASSPATH ${WORKDIR}/ant-ext/ant-contrib-0.6-bin/lib
+RUN cd cpptasks-1.0b5
+RUN ant
+
 #RUN ant
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
