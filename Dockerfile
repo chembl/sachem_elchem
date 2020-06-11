@@ -14,12 +14,11 @@ RUN yum -y install ant
 COPY ./ ${WORKDIR}/
 RUN mkdir build
 ENV JAVA_HOME /usr/share/elasticsearch/jdk
-RUN cd ant-ext
-RUN tar -xvf ant-contrib-0.6-bin.tar.gz
-RUN tar -xvf cpptasks-1.0b5.tar.gz
 ENV CLASSPATH ${WORKDIR}/ant-ext/ant-contrib-0.6-bin/lib
-RUN cd cpptasks-1.0b5
-RUN ant
+RUN cd ant-ext
+RUN cd ant-ext && tar -xvf ant-contrib-0.6-bin.tar.gz
+RUN cd ant-ext && tar -xvf cpptasks-1.0b5.tar.gz
+RUN cd ant-ext/cpptasks-1.0b5 && ant
 
 #RUN ant
 
