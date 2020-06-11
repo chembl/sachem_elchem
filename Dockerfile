@@ -18,11 +18,13 @@ COPY ./ ${WORKDIR}/
 RUN mkdir build
 RUN mkdir jni-build
 RUN mkdir -p target/META-INF/isomorphism/2.0/LINUX-AMD64
-RUN gcc -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -std=c99 -o jni-build/isomorphism.o jni/native.c
-RUN gcc -shared -fPIC -o target/META-INF/isomorphism/2.0/LINUX-AMD64/isomorphism.so jni-build/isomorphism.o -lc
+RUN gcc -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -std=c99 -o jni-build/libisomorphism.o jni/native.c
+RUN gcc -shared -fPIC -o target/META-INF/isomorphism/2.0/LINUX-AMD64/libisomorphism.so jni-build/libisomorphism.o -lc
 
 # build elchem
 RUN ant
+
+
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
