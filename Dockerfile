@@ -10,22 +10,16 @@ WORKDIR ${WORKDIR}
 
 RUN yum -y update
 RUN yum -y install ant
+RUN yum -y install gcc
 
 # Prepare ANT for cpptask build
+ENV JAVA_HOME /usr/share/elasticsearch/jdk
 COPY ./ ${WORKDIR}/
 RUN mkdir build
-ENV JAVA_HOME /usr/share/elasticsearch/jdk
-RUN cd ant-ext && mkdir ant-contrib-0.6-bin && mv ant-contrib-0.6-bin.tar.gz ant-contrib-0.6-bin
-RUN cd ant-ext/ant-contrib-0.6-bin && tar -xvf ant-contrib-0.6-bin.tar.gz
-RUN cd ant-ext && tar -xvf cpptasks-1.0b4.tar.gz
-RUN cd ant-ext && mkdir lib
-RUN ls -la ./
-RUN ls -la ./ant-ext/
-RUN ls -la ./ant-ext/ant-contrib-0.6-bin/
-RUN ls -la ./ant-ext/ant-contrib-0.6-bin/lib/
-RUN cp ./ant-ext/ant-contrib-0.6-bin/lib/ant-contrib-0.6.jar /usr/share/ant/lib
-RUN cp ./ant-ext/cpptasks-1.0b4/cpptasks.jar /usr/share/ant/lib
-RUN ls -la /usr/share/ant/lib
+RUN mkdir jni-build
+RUN mkdir -p target/META-INF/isomorphism/2.0/LINUX-AMD64
+RUN gcc -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -std=c99 -o jni-build/isomorphism.o jni/native.c
+RUN gcc -shared -fPIC -o target/META-INF/isomorphism/2.0/LINUX-AMD64/isomorphism.so jni-build/isomorphism.o -lc
 
 # build elchem
 RUN ant
