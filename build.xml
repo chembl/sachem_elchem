@@ -1,26 +1,26 @@
-<project name="elchem" basedir="." default="default" xmlns:cpptasks="antlib:net.sf.antcontrib.cpptasks">
+<project name="elchem" basedir="." default="default">
   <target name="default" depends="build"/>
   <target name="build">
-  	<mkdir dir="target/META-INF/isomorphism/2.0/LINUX-AMD64"/>
+    <mkdir dir="target/META-INF/isomorphism/2.0/LINUX-AMD64"/>
     <cpptasks:cc outtype="shared" subsystem="console" multithreaded="true" outfile="target/META-INF/isomorphism/2.0/LINUX-AMD64/isomorphism" objdir="target/META-INF/isomorphism/2.0/LINUX-AMD64">
       <includepath path="${java.home}/../include;${java.home}/../include/linux/"/>
       <fileset dir="jni" includes="*.c"/>
     </cpptasks:cc>
 
-  	<mkdir dir="./bin"/>
-  	<path id="class.path"><fileset dir="lib"><include name="**/*.jar" /></fileset></path>
-  	<javac includeantruntime="false" srcdir="./src" destdir="./bin">
+    <mkdir dir="./bin"/>
+    <path id="class.path"><fileset dir="lib"><include name="**/*.jar" /></fileset></path>
+    <javac includeantruntime="false" srcdir="./src" destdir="./bin">
       <classpath refid="class.path"/>
     </javac>
     
-  	<jar destfile="elchem.jar">
+    <jar destfile="elchem.jar">
       <fileset dir="bin" excludes="**/test/**"/>
       <fileset dir="." includes="patterns.bin"/>
-  	  <fileset dir="." includes="META-INF/**"/>
+      <fileset dir="." includes="META-INF/**"/>
       <fileset dir="target" includes="META-INF/isomorphism/2.0/LINUX-AMD64/*.so"/>
     </jar>
     
-  	<zip destfile="elchem.zip">
+    <zip destfile="elchem.zip">
       <fileset dir="." includes="elchem.jar plugin-descriptor.properties plugin-security.policy" />
       <fileset dir="lib" includes="cdk-*-2.3.jar beam-core-1.3.3.jar guava-28.1-jre.jar jnati-core-0.4.jar jnati-deploy-0.4.jar jni-inchi-0.8.jar log4j-1.2.17.jar vecmath-1.5.2.jar"/>
     </zip>
