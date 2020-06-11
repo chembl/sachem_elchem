@@ -1,11 +1,6 @@
 <project name="elchem" basedir="." default="default">
   <target name="default" depends="build"/>
   <target name="build">
-    <mkdir dir="target/META-INF/isomorphism/2.0/LINUX-AMD64"/>
-    <cpptasks:cc outtype="shared" subsystem="console" multithreaded="true" outfile="target/META-INF/isomorphism/2.0/LINUX-AMD64/isomorphism" objdir="target/META-INF/isomorphism/2.0/LINUX-AMD64">
-      <includepath path="${java.home}/../include;${java.home}/../include/linux/"/>
-      <fileset dir="jni" includes="*.c"/>
-    </cpptasks:cc>
 
     <mkdir dir="./bin"/>
     <path id="class.path"><fileset dir="lib"><include name="**/*.jar" /></fileset></path>
