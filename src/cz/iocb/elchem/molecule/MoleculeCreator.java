@@ -141,13 +141,13 @@ public class MoleculeCreator
     {
         try
         {
-            return MoleculeCreator.getMoleculeFromSmiles(smilesOrMol, aromaticityMode);
+            return MoleculeCreator.getMoleculeFromMolfile(smilesOrMol, aromaticityMode);
         }
         catch(Exception e)
         {
             try
             {
-                return MoleculeCreator.getMoleculeFromMolfile(smilesOrMol, aromaticityMode);
+                return MoleculeCreator.getMoleculeFromSmiles(smilesOrMol, aromaticityMode);
             }
             catch(Exception e2)
             {}
