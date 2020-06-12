@@ -1,0 +1,38 @@
+variables:
+    DOCKER_TLS_CERTDIR: ""
+    GIT_STRATEGY: clone
+    REGISTRY_USER: chembl/chembl
+    APPLICATION: sachem_elchem
+    RELEASE_IMAGE: $CI_REGISTRY/$REGISTRY_USER/$APPLICATION:$CI_BUILD_REF_NAME
+    DOCKER_IMAGE: $CI_REGISTRY/$REGISTRY_USER/$APPLICATION
+    DOCKER_DRIVER: overlay
+
+image: docker:latest
+
+services:
+    - docker:dind
+
+stages:
+    - build
+
+# build image ----------------------------------------------------------------------------------------------------------
+
+build-dockerfile:
+    only:
+        - develop
+    stage: build
+    variables:
+        DOCKER_HOST: tcp://docker:2375
+    script:
+        - docker version # verify docker cli is there. Also prints server info
+        - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+        - echo Building $DOCKER_IMAGE:${CI_COMMIT_SHORT_SHA}
+        - docker build -t $DOCKER_IMAGE:${CI_COMMIT_SHORT_SHA} .
+        - echo Deploying $DOCKER_IMAGE:${CI_COMMIT_SHORT_SHA}
+        - docker push ${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+    when: manual
+
+# end ------------------------------------------------------------------------------------------------------------------
+
+after_script:
+    - echo "End of script"
