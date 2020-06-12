@@ -161,7 +161,7 @@ public class StructureFingerprintFieldMapper extends FieldMapper
 
         try
         {
-            IAtomContainer container = MoleculeCreator.getMoleculeFromMolfile(sdf, AromaticityMode.AUTO);
+            IAtomContainer container = MoleculeCreator.getMoleculeFromSmilesOrMolfile(sdf, AromaticityMode.AUTO);
             BinaryMoleculeBuilder builder = new BinaryMoleculeBuilder(container, false, false, false, false);
 
             byte[] binary = builder.asBytes(true);

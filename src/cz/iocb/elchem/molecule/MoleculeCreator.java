@@ -136,6 +136,26 @@ public class MoleculeCreator
         }
     }
 
+    public static IAtomContainer getMoleculeFromSmilesOrMolfile(String smilesOrMol, AromaticityMode aromaticityMode)
+            throws CDKException, IOException
+    {
+        try
+        {
+            return MoleculeCreator.getMoleculeFromSmiles(smilesOrMol, aromaticityMode);
+        }
+        catch(Exception e)
+        {
+            try
+            {
+                return MoleculeCreator.getMoleculeFromMolfile(smilesOrMol, aromaticityMode);
+            }
+            catch(Exception e2)
+            {}
+            throw new CDKException("can not parse molecule as a smiles nor as a molfile");
+        }
+
+    }
+
 
     public static IAtomContainer getMoleculeFromMolfile(String mol, AromaticityMode aromaticityMode)
             throws CDKException, IOException

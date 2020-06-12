@@ -165,7 +165,7 @@ public class SimilarityFingerprintFieldMapper extends FieldMapper
 
         try
         {
-            IAtomContainer container = MoleculeCreator.getMoleculeFromMolfile(sdf, AromaticityMode.AUTO);
+            IAtomContainer container = MoleculeCreator.getMoleculeFromSmilesOrMolfile(sdf, AromaticityMode.AUTO);
             BinaryMoleculeBuilder builder = new BinaryMoleculeBuilder(container, true, true, true, true);
             byte[] binary = builder.asBytes(true);
 
