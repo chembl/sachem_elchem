@@ -142,9 +142,9 @@ public class MoleculeCreator
         List<String> lines = Arrays.asList(smilesOrMol.split("\\n"));
 
         if(lines.size() > 1)
-            return Arrays.asList(MoleculeCreator.getMoleculeFromMolfile(smilesOrMol, aromaticityMode));
+            return MoleculeCreator.getMoleculeFromMolfile(smilesOrMol, aromaticityMode);
         else
-            return Arrays.asList(MoleculeCreator.getMoleculeFromSmiles(smilesOrMol, aromaticityMode));
+            return MoleculeCreator.getMoleculeFromSmiles(smilesOrMol, aromaticityMode);
     }
 
 
