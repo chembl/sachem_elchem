@@ -4,7 +4,9 @@
   	<mkdir dir="target/META-INF/isomorphism/2.0/LINUX-AMD64"/>
     <cpptasks:cc outtype="shared" subsystem="console" multithreaded="true" outfile="target/META-INF/isomorphism/2.0/LINUX-AMD64/isomorphism" objdir="target/META-INF/isomorphism/2.0/LINUX-AMD64">
       <includepath path="${java.home}/../include;${java.home}/../include/linux/"/>
+      <defineset><define name="TARGET_API_LIB"/></defineset>
       <fileset dir="jni" includes="*.c"/>
+      <fileset dir="jni/inchi" includes="*.c"/>
     </cpptasks:cc>
 
   	<mkdir dir="./bin"/>
