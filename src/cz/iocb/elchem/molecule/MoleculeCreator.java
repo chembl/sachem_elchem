@@ -53,7 +53,6 @@ import org.openscience.cdk.silent.AtomContainer;
 import org.openscience.cdk.silent.SilentChemObjectBuilder;
 import org.openscience.cdk.smiles.SmilesParser;
 import org.openscience.cdk.tools.CDKHydrogenAdder;
-import org.openscience.cdk.tools.manipulator.AtomContainerManipulator;
 import org.openscience.cdk.tools.manipulator.AtomTypeManipulator;
 import cz.iocb.elchem.molecule.InChITautomerGenerator.InChITautomerException;
 import cz.iocb.elchem.molecule.InChITools.InChIException;
@@ -86,7 +85,7 @@ public class MoleculeCreator
         @Override
         protected Aromaticity initialValue()
         {
-            return new Aromaticity(ElectronDonation.cdkAllowingExocyclic(), Cycles.cdkAromaticSet());
+            return new Aromaticity(ElectronDonation.daylight(), Cycles.or(Cycles.all(), Cycles.cdkAromaticSet()));
         }
     };
 
@@ -379,7 +378,6 @@ public class MoleculeCreator
             throws CDKException
     {
         kekulize(molecule);
-        AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(molecule);
 
         for(IBond bond : molecule.bonds())
             if(bond instanceof IQueryBond || bond.getOrder() == Order.UNSET)
