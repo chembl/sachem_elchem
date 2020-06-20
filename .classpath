@@ -3,7 +3,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="lib/vecmath-1.5.2.jar"/>
-	<classpathentry kind="lib" path="lib/jni-inchi-0.8.jar"/>
 	<classpathentry kind="lib" path="lib/guava-28.1-jre.jar"/>
 	<classpathentry kind="lib" path="lib/jnati-core-0.4.jar"/>
 	<classpathentry kind="lib" path="lib/jnati-deploy-0.4.jar"/>
@@ -12,7 +11,6 @@
 	<classpathentry kind="lib" path="lib/cdk-atomtype-2.3.jar"/>
 	<classpathentry kind="lib" path="lib/cdk-core-2.3.jar"/>
 	<classpathentry kind="lib" path="lib/cdk-ctab-2.3.jar"/>
-	<classpathentry kind="lib" path="lib/cdk-inchi-2.3.jar"/>
 	<classpathentry kind="lib" path="lib/cdk-interfaces-2.3.jar"/>
 	<classpathentry kind="lib" path="lib/cdk-ioformats-2.3.jar"/>
 	<classpathentry kind="lib" path="lib/cdk-isomorphism-2.3.jar"/>

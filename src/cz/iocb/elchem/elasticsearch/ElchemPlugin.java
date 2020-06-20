@@ -1,5 +1,8 @@
 package cz.iocb.elchem.elasticsearch;
 
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -7,12 +10,31 @@ import org.elasticsearch.index.mapper.Mapper;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SearchPlugin;
+import org.openscience.cdk.silent.SilentChemObjectBuilder;
 import com.google.common.collect.ImmutableMap;
+import net.sf.jnati.deploy.NativeLibraryLoader;
 
 
 
 public class ElchemPlugin extends Plugin implements MapperPlugin, SearchPlugin
 {
+    static
+    {
+        try
+        {
+            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                SilentChemObjectBuilder.getInstance();
+                NativeLibraryLoader.loadLibrary("elchem", "2.5.0");
+                return null;
+            });
+        }
+        catch(PrivilegedActionException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+
     @Override
     public Map<String, Mapper.TypeParser> getMappers()
     {

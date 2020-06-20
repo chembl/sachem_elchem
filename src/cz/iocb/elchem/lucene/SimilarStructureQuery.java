@@ -34,8 +34,13 @@ import cz.iocb.elchem.fingerprint.IOCBFingerprint;
 import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.BinaryMolecule;
 import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
+import cz.iocb.elchem.molecule.ChargeMode;
+import cz.iocb.elchem.molecule.IsotopeMode;
 import cz.iocb.elchem.molecule.MoleculeCreator;
+import cz.iocb.elchem.molecule.MoleculeCreator.QueryMolecule;
 import cz.iocb.elchem.molecule.QueryFormat;
+import cz.iocb.elchem.molecule.RadicalMode;
+import cz.iocb.elchem.molecule.StereoMode;
 import cz.iocb.elchem.molecule.TautomerMode;
 
 
@@ -52,6 +57,7 @@ public class SimilarStructureQuery extends Query
     private final float threshold;
     private final int similarityRadius;
     private final Query subquery;
+    final String name;
 
 
     public SimilarStructureQuery(String field, String query, QueryFormat queryFormat, float threshold,
@@ -66,11 +72,15 @@ public class SimilarStructureQuery extends Query
         this.aromaticityMode = aromaticityMode;
         this.tautomerMode = tautomerMode;
 
-        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, queryFormat, aromaticityMode,
-                tautomerMode);
-        ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecules.size());
+        QueryMolecule queryMolecule = MoleculeCreator.translateQuery(query, queryFormat,
+                ChargeMode.DEFAULT_AS_UNCHARGED, IsotopeMode.DEFAULT_AS_STANDARD, RadicalMode.DEFAULT_AS_STANDARD,
+                StereoMode.IGNORE, aromaticityMode, tautomerMode);
 
-        for(IAtomContainer molecule : queryMolecules)
+        this.name = queryMolecule.name;
+
+        ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecule.tautomers.size());
+
+        for(IAtomContainer molecule : queryMolecule.tautomers)
             subqueries.add(new SingleSimilarityQuery(molecule));
 
         this.subquery = new DisjunctionMaxQuery(subqueries, 0);
@@ -133,9 +143,7 @@ public class SimilarStructureQuery extends Query
             this.parentQuery = SimilarStructureQuery.this;
             this.tautomer = tautomer;
 
-            byte[] moleculeData = (new BinaryMoleculeBuilder(tautomer, true, true, true, true)).asBytes(false);
-
-            BinaryMolecule molecule = new BinaryMolecule(moleculeData);
+            BinaryMolecule molecule = new BinaryMolecule(BinaryMoleculeBuilder.asBytes(tautomer, false));
 
             this.fp = IOCBFingerprint.getSimilarityFingerprint(molecule, similarityRadius);
             this.fpSize = fp.stream().map(i -> i.size()).reduce(0, Integer::sum);

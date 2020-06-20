@@ -164,10 +164,12 @@ int Extract0DParities( inp_ATOM *at,
                  parity != INCHI_PARITY_ODD && parity != INCHI_PARITY_EVEN &&
                  parity != INCHI_PARITY_UNKNOWN && parity != INCHI_PARITY_UNDEFINED )
             {
+#ifdef UNUSED_IN_SACHEM
                 char szTemp[16];
                 sprintf( szTemp, "#%d", i0D+1 );
                 TREAT_ERR (*err, 0, "Wrong 0D stereo descriptor(s):");
                 TREAT_ERR (*err, 0, szTemp);
+#endif
                 continue; /* warning */
             }
 
@@ -296,10 +298,12 @@ int Extract0DParities( inp_ATOM *at,
 
             if ( j != 4 )
             {
+#ifdef UNUSED_IN_SACHEM
                 char szTemp[16];
                 sprintf( szTemp, "#%d", i0D+1 );
                 TREAT_ERR (*err, 0, "Wrong 0D stereo descriptor(s):");
                 TREAT_ERR (*err, 0, szTemp);
+#endif
                 continue; /* error */
             }
 
@@ -413,7 +417,7 @@ case INCHI_StereoType_Tetrahedral:
         /*( through vABParityUnknown )  (2009-12-12)                             */
         FixUnkn0DStereoBonds(at, nNumAtoms);
 #ifdef TARGET_API_LIB
-
+#ifdef UNUSED_IN_SACHEM
         if ( k = ReconcileAllCmlBondParities( at, nNumAtoms, 0 ) ) {
             char szErrCode[16];
             sprintf( szErrCode, "%d", k);
@@ -422,11 +426,13 @@ case INCHI_StereoType_Tetrahedral:
         }
 
 #endif
+#endif
     }
     return 0;
 }
 
 
+#ifdef UNUSED_IN_SACHEM
 /*
     FindToken
 */
@@ -1779,3 +1785,4 @@ static const char sStructHdrPlnNoLblVal[] = " is missing";
 
     return;
 }
+#endif

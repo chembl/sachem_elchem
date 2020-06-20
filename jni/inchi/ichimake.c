@@ -572,6 +572,7 @@ int GetSp3RelRacAbs( const INChI *pINChI, INChI_Stereo *Stereo )
     return nRet;
 }
 
+#ifdef UNUSED_IN_SACHEM
 /*
     CompINChILayers( ... )
 
@@ -1125,6 +1126,7 @@ int CompINChILayers( const INCHI_SORT *p1,
 
     return ret;
 }
+#endif
 
 /*
     INChI_SegmentAction( ... )
@@ -1925,6 +1927,7 @@ int GetInpStructErrorType( INPUT_PARMS *ip, int err, char *pStrErrStruct, int nu
     return _IS_OKAY;
 }
 
+#ifdef UNUSED_IN_SACHEM
 int ProcessStructError( INCHI_IOSTREAM *out_file,
                         INCHI_IOSTREAM *log_file,
                         char *pStrErrStruct,
@@ -1965,6 +1968,7 @@ int ProcessStructError( INCHI_IOSTREAM *out_file,
 
     return nErrorType;
 }
+#endif
 
 #if ( READ_INCHI_STRING == 1 ) /*  { */
 
@@ -2749,6 +2753,7 @@ exit_function:
 }
 #endif  /* } READ_INCHI_STRING */
 
+#ifdef UNUSED_IN_SACHEM
 /*
     Create_INChI( ... )
 
@@ -3550,6 +3555,7 @@ exit_function:
         inchi_free( ebend );
     return ret;
 }
+#endif
 
 #ifndef COMPILE_ANSI_ONLY /* { */
 int GetAtomOrdNbrInCanonOrd( struct tagCANON_GLOBALS *pCG,

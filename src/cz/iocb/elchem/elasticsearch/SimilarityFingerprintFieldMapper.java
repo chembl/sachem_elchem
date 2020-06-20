@@ -26,7 +26,6 @@ import org.openscience.cdk.interfaces.IAtomContainer;
 import cz.iocb.elchem.fingerprint.IOCBFingerprint;
 import cz.iocb.elchem.lucene.FingerprintTokenStream;
 import cz.iocb.elchem.lucene.SimilarStructureQuery;
-import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.BinaryMolecule;
 import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
 import cz.iocb.elchem.molecule.MoleculeCreator;
@@ -165,9 +164,9 @@ public class SimilarityFingerprintFieldMapper extends FieldMapper
 
         try
         {
-            IAtomContainer container = MoleculeCreator.getMoleculeFromMolfile(sdf, AromaticityMode.AUTO);
-            BinaryMoleculeBuilder builder = new BinaryMoleculeBuilder(container, true, true, true, true);
-            byte[] binary = builder.asBytes(true);
+            IAtomContainer container = MoleculeCreator.translateMolecule(sdf, false);
+            byte[] binary = BinaryMoleculeBuilder.asBytes(container, true);
+
 
             String name = fieldType().name();
             BinaryMolecule molecule = new BinaryMolecule(binary);

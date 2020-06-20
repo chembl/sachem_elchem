@@ -23,9 +23,9 @@ import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import cz.iocb.elchem.fingerprint.IOCBFingerprint;
 import cz.iocb.elchem.lucene.FingerprintTokenStream;
-import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.BinaryMolecule;
 import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
+import cz.iocb.elchem.molecule.InChITools.InChIException;
 import cz.iocb.elchem.molecule.MoleculeCreator;
 
 
@@ -161,10 +161,18 @@ public class StructureFingerprintFieldMapper extends FieldMapper
 
         try
         {
-            IAtomContainer container = MoleculeCreator.getMoleculeFromMolfile(sdf, AromaticityMode.AUTO);
-            BinaryMoleculeBuilder builder = new BinaryMoleculeBuilder(container, false, false, false, false);
+            byte[] binary;
 
-            byte[] binary = builder.asBytes(true);
+            try
+            {
+                IAtomContainer container = MoleculeCreator.translateMolecule(sdf, true);
+                binary = BinaryMoleculeBuilder.asBytes(container, true);
+            }
+            catch(InChIException e)
+            {
+                IAtomContainer container = MoleculeCreator.translateMolecule(sdf, false);
+                binary = BinaryMoleculeBuilder.asBytes(container, true);
+            }
 
             String name = fieldType().name();
             BinaryMolecule molecule = new BinaryMolecule(binary);

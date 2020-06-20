@@ -1,9 +1,9 @@
 <project name="elchem" basedir="." default="default" xmlns:cpptasks="antlib:net.sf.antcontrib.cpptasks">
   <target name="default" depends="build"/>
   <target name="build">
-  	<mkdir dir="target/META-INF/isomorphism/2.0/LINUX-AMD64"/>
-    <cpptasks:cc outtype="shared" subsystem="console" multithreaded="true" outfile="target/META-INF/isomorphism/2.0/LINUX-AMD64/isomorphism" objdir="target/META-INF/isomorphism/2.0/LINUX-AMD64">
-      <includepath path="${java.home}/../include;${java.home}/../include/linux/"/>
+  	<mkdir dir="target/META-INF/elchem/2.5.0/LINUX-AMD64"/>
+    <cpptasks:cc outtype="shared" subsystem="console" multithreaded="true" outfile="target/META-INF/elchem/2.5.0/LINUX-AMD64/elchem" objdir="target/META-INF/elchem/2.5.0/LINUX-AMD64">
+      <includepath path="jni/inchi;${java.home}/../include;${java.home}/../include/linux/"/>
       <defineset><define name="TARGET_API_LIB"/></defineset>
       <fileset dir="jni" includes="*.c"/>
       <fileset dir="jni/inchi" includes="*.c"/>
@@ -19,7 +19,7 @@
       <fileset dir="bin" excludes="**/test/**"/>
       <fileset dir="." includes="patterns.bin"/>
   	  <fileset dir="." includes="META-INF/**"/>
-      <fileset dir="target" includes="META-INF/isomorphism/2.0/LINUX-AMD64/*.so"/>
+      <fileset dir="target" includes="META-INF/elchem/2.5.0/LINUX-AMD64/*.so"/>
     </jar>
     
   	<zip destfile="elchem.zip">

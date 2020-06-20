@@ -38,6 +38,7 @@ import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
 import cz.iocb.elchem.molecule.ChargeMode;
 import cz.iocb.elchem.molecule.IsotopeMode;
 import cz.iocb.elchem.molecule.MoleculeCreator;
+import cz.iocb.elchem.molecule.MoleculeCreator.QueryMolecule;
 import cz.iocb.elchem.molecule.NativeIsomorphism;
 import cz.iocb.elchem.molecule.NativeIsomorphism.IterationLimitExceededException;
 import cz.iocb.elchem.molecule.QueryFormat;
@@ -61,8 +62,8 @@ public class SubstructureQuery extends Query
     private final AromaticityMode aromaticityMode;
     private final TautomerMode tautomerMode;
     private final long iterationLimit;
-
     private final Query subquery;
+    final String name;
 
 
     public SubstructureQuery(String field, String query, QueryFormat queryFormat, SearchMode searchMode,
@@ -82,11 +83,14 @@ public class SubstructureQuery extends Query
         this.tautomerMode = tautomerMode;
         this.iterationLimit = iterationLimit;
 
-        List<IAtomContainer> queryMolecules = MoleculeCreator.translateQuery(query, queryFormat, aromaticityMode,
-                tautomerMode);
-        ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecules.size());
+        QueryMolecule queryMolecules = MoleculeCreator.translateQuery(query, queryFormat, chargeMode, isotopeMode,
+                radicalMode, stereoMode, aromaticityMode, tautomerMode);
 
-        for(IAtomContainer molecule : queryMolecules)
+        this.name = queryMolecules.name;
+
+        ArrayList<Query> subqueries = new ArrayList<Query>(queryMolecules.tautomers.size());
+
+        for(IAtomContainer molecule : queryMolecules.tautomers)
             subqueries.add(new SingleSubstructureQuery(molecule));
 
         this.subquery = new DisjunctionMaxQuery(subqueries, 0);
@@ -166,9 +170,7 @@ public class SubstructureQuery extends Query
             this.parentQuery = SubstructureQuery.this;
             this.tautomer = tautomer;
 
-            this.moleculeData = (new BinaryMoleculeBuilder(tautomer, chargeMode == ChargeMode.IGNORE,
-                    isotopeMode == IsotopeMode.IGNORE, radicalMode == RadicalMode.IGNORE,
-                    stereoMode == StereoMode.IGNORE)).asBytes(searchMode == SearchMode.EXACT);
+            this.moleculeData = BinaryMoleculeBuilder.asBytes(tautomer, searchMode == SearchMode.EXACT);
 
             boolean hasRestH = false;
 
