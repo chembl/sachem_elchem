@@ -2204,7 +2204,7 @@ int can_be_a_stereo_bond_with_isotopic_H( inp_ATOM *at, int cur_at, INCHI_MODE n
         bond_type = get_allowed_stereo_bond_type( (int)at[cur_at].bond_type[i] );
         if ( bond_type == BOND_ALTERN ) {
             num_alt ++;
-            if ( cur_at > next_at && !(nMode & CMODE_NO_ALT_SBONDS) )
+            if ( /*cur_at > next_at &&*/ !(nMode & CMODE_NO_ALT_SBONDS) )
                 bFound = 1;
         } else
         if ( bond_type == BOND_DOUBLE ) {
@@ -2214,7 +2214,7 @@ int can_be_a_stereo_bond_with_isotopic_H( inp_ATOM *at, int cur_at, INCHI_MODE n
                 num_2s_hetero[n2sh] ++; /* n2sh=0 -> =N- or =NH; n2sh=1 -> =O */
             }
 #endif
-            if ( cur_at > next_at )
+            /*if ( cur_at > next_at )*/
                 bFound = 1;
         } else
         if ( bond_type != BOND_SINGLE && bond_type != BOND_TAUTOM ) {
@@ -3684,7 +3684,7 @@ int set_stereo_parity( CANON_GLOBALS *pCG, inp_ATOM* at, sp_ATOM* at_output, int
         if ( nMaxNumStereoAtoms )
             *nMaxNumStereoAtoms = max_stereo_atoms;
         if ( nMaxNumStereoBonds )
-            *nMaxNumStereoBonds = max_stereo_bonds;
+            *nMaxNumStereoBonds = max_stereo_bonds / 2;
     }
     /*  calculate stereo descriptors */
 #if ( MIN_SB_RING_SIZE > 0 )
