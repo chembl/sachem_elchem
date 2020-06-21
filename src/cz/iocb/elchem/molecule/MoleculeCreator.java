@@ -231,7 +231,7 @@ public class MoleculeCreator
 
     public static IAtomContainer translateMolecule(String mol, boolean inchiStereo) throws CDKException, IOException
     {
-        IAtomContainer molecule = getMoleculeFromMolfile(mol);
+        IAtomContainer molecule = mol.contains("\n") ? getMoleculeFromMolfile(mol) : getMoleculeFromSmiles(mol);
 
         List<IBond> otherBonds = new LinkedList<IBond>();
 
