@@ -285,6 +285,52 @@ public class MoleculeCreator
             mdlReader.close();
         }
 
+        sanitizeMolecule(molecule);
+
+        return molecule;
+    }
+
+
+    private static IAtomContainer getMoleculeFromSmiles(String smiles) throws CDKException
+    {
+        SmilesParser sp = new SmilesParser(SilentChemObjectBuilder.getInstance());
+        IAtomContainer molecule;
+
+        try
+        {
+            molecule = sp.parseSmiles(smiles);
+        }
+        catch(InvalidSmilesException e)
+        {
+            sp.kekulise(false);
+            molecule = sp.parseSmiles(smiles);
+        }
+
+        sanitizeMolecule(molecule);
+
+        molecule.setTitle(smiles);
+
+        return molecule;
+    }
+
+
+    private static List<IAtomContainer> getMoleculesFromRGroupQuery(String rgroup) throws CDKException, IOException
+    {
+        try(RGroupQueryReader reader = new RGroupQueryReader(new ByteArrayInputStream(rgroup.getBytes())))
+        {
+            RGroupQuery rGroupQuery = reader.read(new RGroupQuery(SilentChemObjectBuilder.getInstance()));
+            List<IAtomContainer> molecules = rGroupQuery.getAllConfigurations();
+
+            for(IAtomContainer molecule : molecules)
+                sanitizeMolecule(molecule);
+
+            return molecules;
+        }
+    }
+
+
+    private static void sanitizeMolecule(IAtomContainer molecule) throws CDKException
+    {
         IChemObjectBuilder builder = molecule.getBuilder();
 
         for(int i = 0; i < molecule.getAtomCount(); i++)
@@ -334,51 +380,15 @@ public class MoleculeCreator
             }
         }
 
-        molecule.setAtoms(BinaryMoleculeSort.atomsByFrequency(molecule));
-
-        return molecule;
-    }
-
-
-    private static IAtomContainer getMoleculeFromSmiles(String smiles) throws CDKException
-    {
-        SmilesParser sp = new SmilesParser(SilentChemObjectBuilder.getInstance());
-        IAtomContainer molecule;
-
-        try
-        {
-            molecule = sp.parseSmiles(smiles);
-        }
-        catch(InvalidSmilesException e)
-        {
-            sp.kekulise(false);
-            molecule = sp.parseSmiles(smiles);
-        }
+        kekulize(molecule);
 
         molecule.setAtoms(BinaryMoleculeSort.atomsByFrequency(molecule));
-        molecule.setTitle(smiles);
-
-        return molecule;
-    }
-
-
-    private static List<IAtomContainer> getMoleculesFromRGroupQuery(String rgroup) throws CDKException, IOException
-    {
-        try(RGroupQueryReader reader = new RGroupQueryReader(new ByteArrayInputStream(rgroup.getBytes())))
-        {
-            RGroupQuery rGroupQuery = reader.read(new RGroupQuery(SilentChemObjectBuilder.getInstance()));
-            List<IAtomContainer> molecules = rGroupQuery.getAllConfigurations();
-
-            return molecules;
-        }
     }
 
 
     private static void configureAromaticity(IAtomContainer molecule, AromaticityMode aromaticityMode)
             throws CDKException
     {
-        kekulize(molecule);
-
         for(IBond bond : molecule.bonds())
             if(bond instanceof IQueryBond || bond.getOrder() == Order.UNSET)
                 return;
