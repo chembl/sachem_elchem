@@ -339,6 +339,8 @@ public class MoleculeCreator
 
             if(atom instanceof IPseudoAtom)
             {
+                atom.setAtomicNumber(0);
+
                 String symbol = ((IPseudoAtom) atom).getLabel();
 
                 if(symbol.equals("D") || symbol.equals("T"))
