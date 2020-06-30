@@ -2,6 +2,7 @@ package cz.iocb.elchem.lucene;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.util.BytesRef;
 import org.openscience.cdk.CDKConstants;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.interfaces.IAtom;
@@ -394,7 +396,8 @@ public class SubstructureQuery extends Query
                 boolean isValid() throws IOException
                 {
                     molDocValue.advanceExact(docID);
-                    byte[] target = molDocValue.binaryValue().bytes;
+                    BytesRef ref = molDocValue.binaryValue();
+                    byte[] target = Arrays.copyOfRange(ref.bytes, ref.offset, ref.offset + ref.length);
 
                     try
                     {

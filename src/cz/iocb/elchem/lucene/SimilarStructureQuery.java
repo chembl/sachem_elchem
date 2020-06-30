@@ -339,7 +339,7 @@ public class SimilarStructureQuery extends Query
                     molDocValue.advanceExact(docID);
                     BytesRef data = molDocValue.binaryValue();
 
-                    int offset = 0;
+                    int offset = data.offset;
                     int dbSize = 0;
                     int shared = 0;
 
@@ -348,14 +348,14 @@ public class SimilarStructureQuery extends Query
                         int size = 0;
 
                         for(int b = 0; b < Integer.BYTES; b++)
-                            size |= Byte.toUnsignedInt(data.bytes[offset * Integer.BYTES + b]) << (b * 8);
+                            size |= Byte.toUnsignedInt(data.bytes[offset + b]) << (b * 8);
 
                         for(int idx = 0, i = 1; i <= size; i++)
                         {
                             int value = 0;
 
                             for(int b = 0; b < 4; b++)
-                                value |= Byte.toUnsignedInt(data.bytes[(offset + i) * Integer.BYTES + b]) << (b * 8);
+                                value |= Byte.toUnsignedInt(data.bytes[offset + i * Integer.BYTES + b]) << (b * 8);
 
                             while(idx < iteration.size() && iteration.get(idx) < value)
                                 idx++;
@@ -370,7 +370,7 @@ public class SimilarStructureQuery extends Query
                             }
                         }
 
-                        offset += size + 1;
+                        offset += (size + 1) * Integer.BYTES;
                         dbSize += size;
                     }
 
