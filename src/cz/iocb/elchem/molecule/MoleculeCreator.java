@@ -228,15 +228,15 @@ public class MoleculeCreator
         return new QueryMolecule(name, queries);
     }
 
-    public static IAtomContainer getMoleculeFromSmilesOrMolfile(String smilesOrMol, AromaticityMode aromaticityMode)
+    public static IAtomContainer getMoleculeFromSmilesOrMolfile(String smilesOrMol)
             throws CDKException, IOException
     {
         List<String> lines = Arrays.asList(smilesOrMol.split("\\n"));
 
         if(lines.size() > 1)
-            return MoleculeCreator.getMoleculeFromMolfile(smilesOrMol, aromaticityMode);
+            return MoleculeCreator.getMoleculeFromMolfile(smilesOrMol);
         else
-            return MoleculeCreator.getMoleculeFromSmiles(smilesOrMol, aromaticityMode);
+            return MoleculeCreator.getMoleculeFromSmiles(smilesOrMol);
     }
 
 
