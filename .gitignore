@@ -1,4 +1,6 @@
 /bin/
 elchem.jar
 elchem.zip
-/target/
+jni/.deps
+jni/.objs
+META-INF/**/*.so

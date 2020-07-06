@@ -1,10 +1,6 @@
 package cz.iocb.elchem.molecule;
 
 import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import net.sf.jnati.deploy.NativeLibraryLoader;
 
 
 
@@ -45,18 +41,6 @@ public class NativeIsomorphism
 
     static
     {
-        try
-        {
-            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                NativeLibraryLoader.loadLibrary("isomorphism", "2.0");
-                return null;
-            });
-
-            init();
-        }
-        catch(PrivilegedActionException e)
-        {
-            throw new RuntimeException(e);
-        }
+        init();
     }
 }

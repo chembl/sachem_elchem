@@ -1,6 +1,7 @@
 package cz.iocb.elchem.elasticsearch;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,6 +13,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.mapper.Mapper;
@@ -26,6 +28,7 @@ import cz.iocb.elchem.lucene.FingerprintTokenStream;
 import cz.iocb.elchem.molecule.AromaticityMode;
 import cz.iocb.elchem.molecule.BinaryMolecule;
 import cz.iocb.elchem.molecule.BinaryMoleculeBuilder;
+import cz.iocb.elchem.molecule.InChITools.InChIException;
 import cz.iocb.elchem.molecule.MoleculeCreator;
 
 
@@ -48,6 +51,9 @@ public class StructureFingerprintFieldMapper extends FieldMapper
 
     public static class Builder extends FieldMapper.Builder<Builder, StructureFingerprintFieldMapper>
     {
+        private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
+
+
         public Builder(String name)
         {
             super(name, Defaults.FIELD_TYPE, Defaults.FIELD_TYPE);
@@ -72,10 +78,12 @@ public class StructureFingerprintFieldMapper extends FieldMapper
             fieldType.setIndexOptions(IndexOptions.NONE);
             fieldType.setHasDocValues(false);
             fieldType.setStored(false);
+            ((FieldType) fieldType).aromaticityMode = aromaticityMode;
 
             defaultFieldType.setIndexOptions(IndexOptions.NONE);
             defaultFieldType.setHasDocValues(false);
             defaultFieldType.setStored(false);
+            ((FieldType) defaultFieldType).aromaticityMode = AromaticityMode.AUTO;
         }
     }
 
@@ -90,6 +98,17 @@ public class StructureFingerprintFieldMapper extends FieldMapper
 
             TypeParsers.parseField(builder, name, node, parserContext);
 
+            for(Iterator<Map.Entry<String, Object>> iterator = node.entrySet().iterator(); iterator.hasNext();)
+            {
+                Map.Entry<String, Object> entry = iterator.next();
+
+                if(entry.getKey().equals("aromaticity_mode"))
+                {
+                    builder.aromaticityMode = AromaticityMode.valueOf(entry.getValue().toString().toUpperCase());
+                    iterator.remove();
+                }
+            }
+
             return builder;
         }
     }
@@ -97,6 +116,9 @@ public class StructureFingerprintFieldMapper extends FieldMapper
 
     public static class FieldType extends MappedFieldType
     {
+        private AromaticityMode aromaticityMode = AromaticityMode.AUTO;
+
+
         public FieldType()
         {
         }
@@ -105,6 +127,8 @@ public class StructureFingerprintFieldMapper extends FieldMapper
         protected FieldType(FieldType ref)
         {
             super(ref);
+
+            aromaticityMode = ref.aromaticityMode;
         }
 
 
@@ -152,19 +176,39 @@ public class StructureFingerprintFieldMapper extends FieldMapper
 
 
     @Override
+    protected void doXContentBody(XContentBuilder builder, boolean includeDefaults, Params params) throws IOException
+    {
+        super.doXContentBody(builder, includeDefaults, params);
+
+        if(includeDefaults || ((FieldType) fieldType).aromaticityMode != ((FieldType) defaultFieldType).aromaticityMode)
+            builder.field("aromaticity_mode", ((FieldType) fieldType).aromaticityMode.name());
+    }
+
+
+    @Override
     protected void parseCreateField(ParseContext context, List<IndexableField> fields) throws IOException
     {
-        String sdf = context.externalValueSet() ? context.externalValue().toString() : context.parser().textOrNull();
+        AromaticityMode aromaticityMode = ((FieldType) fieldType).aromaticityMode;
 
-        if(sdf == null)
+        String data = context.externalValueSet() ? context.externalValue().toString() : context.parser().textOrNull();
+
+        if(data == null)
             return;
 
         try
         {
-            IAtomContainer container = MoleculeCreator.getMoleculeFromSmilesOrMolfile(sdf, AromaticityMode.AUTO);
-            BinaryMoleculeBuilder builder = new BinaryMoleculeBuilder(container, false, false, false, false);
+            byte[] binary;
 
-            byte[] binary = builder.asBytes(true);
+            try
+            {
+                IAtomContainer container = MoleculeCreator.translateMolecule(data, aromaticityMode, true);
+                binary = BinaryMoleculeBuilder.asBytes(container, true);
+            }
+            catch(InChIException e)
+            {
+                IAtomContainer container = MoleculeCreator.translateMolecule(data, aromaticityMode, false);
+                binary = BinaryMoleculeBuilder.asBytes(container, true);
+            }
 
             String name = fieldType().name();
             BinaryMolecule molecule = new BinaryMolecule(binary);
