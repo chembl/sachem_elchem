@@ -11,6 +11,7 @@ WORKDIR ${WORKDIR}
 RUN yum -y update
 RUN yum -y install ant
 RUN yum -y install gcc
+RUN yum -y install make
 
 # Prepare ANT for cpptask build
 ENV JAVA_HOME /usr/share/elasticsearch/jdk
