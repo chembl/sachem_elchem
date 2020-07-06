@@ -15,10 +15,6 @@ RUN yum -y install gcc
 # Prepare ANT for cpptask build
 ENV JAVA_HOME /usr/share/elasticsearch/jdk
 COPY ./ ${WORKDIR}/
-RUN mkdir jni-build
-RUN mkdir -p target/META-INF/isomorphism/2.0/LINUX-AMD64
-RUN gcc -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -std=c99 -o jni-build/libisomorphism.o jni/native.c
-RUN gcc -shared -fPIC -o target/META-INF/isomorphism/2.0/LINUX-AMD64/libisomorphism.so jni-build/libisomorphism.o -lc
 
 # Build elchem.jar and elchem.zip
 RUN ant
