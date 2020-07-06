@@ -4,3 +4,4 @@ elchem.zip
 jni/.deps
 jni/.objs
 META-INF/**/*.so
+.idea/*
