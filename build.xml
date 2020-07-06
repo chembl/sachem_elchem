@@ -3,7 +3,7 @@
 
   <target name="build">
   	<exec executable="make" dir="jni">
-  	  <env key="JAVA_HOMEX" file="${java.home}/.."/>
+  	  <env key="JAVA_HOMEX" file="${java.home}"/>
   	  <env key="OUTDIR" file="META-INF/elchem/2.5.0/LINUX-AMD64"/>
   	</exec>
 
