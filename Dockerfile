@@ -1,12 +1,7 @@
 FROM docker.elastic.co/elasticsearch/elasticsearch:7.5.2
-ARG USERNAME=${USERNAME:-elastic}
-ARG UID=${UID:-1000}
-ARG GID=${GID:-1000}
-ARG WORKDIR=${WORKDIR:-/sachem}
-# setup user and app root directory
-RUN mkdir -p ${WORKDIR}
-RUN chown -R ${UID}:${GID} ${WORKDIR}
-WORKDIR ${WORKDIR}
+ARG ELCHEM_DIR=${ELCHEM_DIR:-/usr/share/sachem-elchem}
+# setup base directory
+RUN mkdir -p ${ELCHEM_DIR}
 
 RUN yum -y update
 RUN yum -y install ant
@@ -15,13 +10,13 @@ RUN yum -y install make
 
 # Prepare ANT for cpptask build
 ENV JAVA_HOME /usr/share/elasticsearch/jdk
-COPY ./ ${WORKDIR}/
+COPY ./ ${ELCHEM_DIR}/
 
 # Build elchem.jar and elchem.zip
-RUN ant
+RUN cd ${ELCHEM_DIR} && ant
 
 # Install plugin in elasticsearch
-RUN elasticsearch-plugin install -b file:///${WORKDIR}/elchem.zip
+RUN elasticsearch-plugin install -b file:///${ELCHEM_DIR}/elchem.zip
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
